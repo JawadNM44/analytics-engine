@@ -46,9 +46,8 @@ resource "google_bigquery_table" "all_transactions" {
   description = "Every validated transaction processed by the Cloud Function"
 
   time_partitioning {
-    type                     = "DAY"
-    field                    = "processed_at"
-    require_partition_filter = false
+    type  = "DAY"
+    field = "processed_at"
     expiration_ms = (
       var.bq_partition_expiry_days > 0
       ? var.bq_partition_expiry_days * 86400 * 1000
@@ -56,7 +55,8 @@ resource "google_bigquery_table" "all_transactions" {
     )
   }
 
-  clustering = ["country_code", "currency", "card_type"]
+  require_partition_filter = false
+  clustering               = ["country_code", "currency", "card_type"]
 
   schema = jsonencode(local.base_schema)
 

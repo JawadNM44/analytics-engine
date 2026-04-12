@@ -61,8 +61,9 @@ resource "google_cloudfunctions2_function" "processor" {
   description = "Validates, scores, and streams financial transactions to BigQuery"
 
   build_config {
-    runtime     = "python312"
-    entry_point = "process_transaction"
+    runtime          = "python312"
+    entry_point      = "process_transaction"
+    service_account  = google_service_account.build_sa.id
 
     source {
       storage_source {

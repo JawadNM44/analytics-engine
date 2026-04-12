@@ -1,3 +1,49 @@
+# ── Service Account: Custom Build SA (replaces default Cloud Build SA) ────────
+# New GCP projects disable the default Cloud Build SA via org policy.
+# We create a dedicated build SA and pass it to build_config.service_account.
+resource "google_service_account" "build_sa" {
+  account_id   = "sa-function-build"
+  display_name = "Cloud Function Build SA"
+  description  = "Custom build service account for Cloud Functions 2nd Gen"
+}
+
+resource "google_project_iam_member" "build_sa_builder" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.builder"
+  member  = "serviceAccount:${google_service_account.build_sa.email}"
+}
+
+resource "google_project_iam_member" "build_sa_log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.build_sa.email}"
+}
+
+resource "google_project_iam_member" "build_sa_storage_viewer" {
+  project = var.project_id
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_service_account.build_sa.email}"
+}
+
+resource "google_project_iam_member" "build_sa_artifact_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.build_sa.email}"
+}
+
+resource "google_project_iam_member" "build_sa_run_developer" {
+  project = var.project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${google_service_account.build_sa.email}"
+}
+
+# Cloud Functions service agent must be allowed to impersonate the build SA
+resource "google_service_account_iam_member" "gcf_agent_act_as_build_sa" {
+  service_account_id = google_service_account.build_sa.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@gcf-admin-robot.iam.gserviceaccount.com"
+}
+
 # ── Service Account: Cloud Function ──────────────────────────────────────────
 resource "google_service_account" "function_sa" {
   account_id   = "sa-transaction-processor"

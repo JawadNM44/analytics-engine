@@ -30,9 +30,5 @@ output "function_service_account" {
 
 output "monitoring_dashboard_url" {
   description = "URL to the Cloud Monitoring dashboard"
-  value = (
-    "https://console.cloud.google.com/monitoring/dashboards/custom/"
-    "${google_monitoring_dashboard.analytics.id}"
-    "?project=${var.project_id}"
-  )
+  value = "https://console.cloud.google.com/monitoring/dashboards/custom/${google_monitoring_dashboard.analytics.id}?project=${var.project_id}"
 }
