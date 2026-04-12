@@ -7,48 +7,43 @@ resource "google_monitoring_dashboard" "analytics" {
       columns = "2"
       widgets = [
 
-        # ── Function Invocation Rate ──────────────────────────────────────────
+        # ── Function Invocation Count ─────────────────────────────────────────
         {
           title = "Function Invocations / min"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {
                 timeSeriesFilter = {
-                  filter = join(" AND ", [
-                    "resource.type=\"cloud_run_revision\"",
-                    "metric.type=\"run.googleapis.com/request_count\"",
-                    "resource.labels.service_name=\"${var.function_name}\"",
-                  ])
+                  filter = "resource.type=\"cloud_function\" AND metric.type=\"cloudfunctions.googleapis.com/function/execution_count\" AND resource.labels.function_name=\"${var.function_name}\""
                   aggregation = {
                     alignmentPeriod    = "60s"
                     perSeriesAligner   = "ALIGN_RATE"
                     crossSeriesReducer = "REDUCE_SUM"
+                    groupByFields      = ["resource.labels.function_name"]
                   }
                 }
               }
               plotType   = "LINE"
               targetAxis = "Y1"
             }]
-            yAxis = { label = "req/min", scale = "LINEAR" }
+            yAxis = { label = "executions/min", scale = "LINEAR" }
+            timeshiftDuration = "0s"
           }
         },
 
-        # ── P99 Request Latency ───────────────────────────────────────────────
+        # ── Execution Time (P99) ──────────────────────────────────────────────
         {
-          title = "P99 Function Latency (ms)"
+          title = "Execution Time P99 (ms)"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {
                 timeSeriesFilter = {
-                  filter = join(" AND ", [
-                    "resource.type=\"cloud_run_revision\"",
-                    "metric.type=\"run.googleapis.com/request_latencies\"",
-                    "resource.labels.service_name=\"${var.function_name}\"",
-                  ])
+                  filter = "resource.type=\"cloud_function\" AND metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" AND resource.labels.function_name=\"${var.function_name}\""
                   aggregation = {
                     alignmentPeriod    = "60s"
-                    perSeriesAligner   = "ALIGN_DELTA"
-                    crossSeriesReducer = "REDUCE_PERCENTILE_99"
+                    perSeriesAligner   = "ALIGN_PERCENTILE_99"
+                    crossSeriesReducer = "REDUCE_MAX"
+                    groupByFields      = ["resource.labels.function_name"]
                   }
                 }
               }
@@ -59,23 +54,19 @@ resource "google_monitoring_dashboard" "analytics" {
           }
         },
 
-        # ── Error Rate ───────────────────────────────────────────────────────
+        # ── Function Errors ───────────────────────────────────────────────────
         {
-          title = "Function Error Rate"
+          title = "Function Errors / min"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {
                 timeSeriesFilter = {
-                  filter = join(" AND ", [
-                    "resource.type=\"cloud_run_revision\"",
-                    "metric.type=\"run.googleapis.com/request_count\"",
-                    "resource.labels.service_name=\"${var.function_name}\"",
-                    "metric.labels.response_code_class!=\"2xx\"",
-                  ])
+                  filter = "resource.type=\"cloud_function\" AND metric.type=\"cloudfunctions.googleapis.com/function/execution_count\" AND resource.labels.function_name=\"${var.function_name}\" AND metric.labels.status!=\"ok\""
                   aggregation = {
                     alignmentPeriod    = "60s"
                     perSeriesAligner   = "ALIGN_RATE"
                     crossSeriesReducer = "REDUCE_SUM"
+                    groupByFields      = ["metric.labels.status"]
                   }
                 }
               }
@@ -86,18 +77,14 @@ resource "google_monitoring_dashboard" "analytics" {
           }
         },
 
-        # ── Pub/Sub Undelivered Message Count ─────────────────────────────────
+        # ── Pub/Sub Undelivered Messages ──────────────────────────────────────
         {
           title = "Pub/Sub Undelivered Messages"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {
                 timeSeriesFilter = {
-                  filter = join(" AND ", [
-                    "resource.type=\"pubsub_subscription\"",
-                    "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\"",
-                    "resource.labels.subscription_id=\"${var.pubsub_topic}-sub\"",
-                  ])
+                  filter = "resource.type=\"pubsub_subscription\" AND metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\" AND resource.labels.subscription_id=\"${var.pubsub_topic}-sub\""
                   aggregation = {
                     alignmentPeriod    = "60s"
                     perSeriesAligner   = "ALIGN_MEAN"
@@ -112,18 +99,14 @@ resource "google_monitoring_dashboard" "analytics" {
           }
         },
 
-        # ── Active Function Instances ─────────────────────────────────────────
+        # ── Active Instances ──────────────────────────────────────────────────
         {
           title = "Active Function Instances"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {
                 timeSeriesFilter = {
-                  filter = join(" AND ", [
-                    "resource.type=\"cloud_run_revision\"",
-                    "metric.type=\"run.googleapis.com/container/instance_count\"",
-                    "resource.labels.service_name=\"${var.function_name}\"",
-                  ])
+                  filter = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/container/instance_count\" AND resource.labels.service_name=\"${var.function_name}\""
                   aggregation = {
                     alignmentPeriod    = "60s"
                     perSeriesAligner   = "ALIGN_MEAN"
@@ -138,18 +121,14 @@ resource "google_monitoring_dashboard" "analytics" {
           }
         },
 
-        # ── Pub/Sub Oldest Unacked Message Age ───────────────────────────────
+        # ── Pub/Sub Oldest Unacked Message Age ────────────────────────────────
         {
-          title = "Oldest Unacked Message Age (s)"
+          title = "Pub/Sub Oldest Unacked Message Age (s)"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {
                 timeSeriesFilter = {
-                  filter = join(" AND ", [
-                    "resource.type=\"pubsub_subscription\"",
-                    "metric.type=\"pubsub.googleapis.com/subscription/oldest_unacked_message_age\"",
-                    "resource.labels.subscription_id=\"${var.pubsub_topic}-sub\"",
-                  ])
+                  filter = "resource.type=\"pubsub_subscription\" AND metric.type=\"pubsub.googleapis.com/subscription/oldest_unacked_message_age\" AND resource.labels.subscription_id=\"${var.pubsub_topic}-sub\""
                   aggregation = {
                     alignmentPeriod    = "60s"
                     perSeriesAligner   = "ALIGN_MAX"
@@ -171,7 +150,7 @@ resource "google_monitoring_dashboard" "analytics" {
   depends_on = [google_project_service.apis]
 }
 
-# ── Alert Policy: high error rate ────────────────────────────────────────────
+# ── Alert Policy: high error rate ─────────────────────────────────────────────
 resource "google_monitoring_alert_policy" "high_error_rate" {
   display_name = "Transaction Processor — High Error Rate"
   combiner     = "OR"
@@ -179,11 +158,7 @@ resource "google_monitoring_alert_policy" "high_error_rate" {
   conditions {
     display_name = "Function error rate > 5% for 5 min"
     condition_threshold {
-      filter = join(" AND ", [
-        "resource.type=\"cloud_run_revision\"",
-        "metric.type=\"run.googleapis.com/request_count\"",
-        "metric.labels.response_code_class!=\"2xx\"",
-      ])
+      filter          = "resource.type=\"cloud_function\" AND metric.type=\"cloudfunctions.googleapis.com/function/execution_count\" AND metric.labels.status!=\"ok\""
       comparison      = "COMPARISON_GT"
       threshold_value = 0.05
       duration        = "300s"
@@ -213,10 +188,7 @@ resource "google_monitoring_alert_policy" "pubsub_backlog" {
   conditions {
     display_name = "Undelivered messages > 10,000 for 5 min"
     condition_threshold {
-      filter = join(" AND ", [
-        "resource.type=\"pubsub_subscription\"",
-        "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\"",
-      ])
+      filter          = "resource.type=\"pubsub_subscription\" AND metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\""
       comparison      = "COMPARISON_GT"
       threshold_value = 10000
       duration        = "300s"
