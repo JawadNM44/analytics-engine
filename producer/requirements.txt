@@ -1,0 +1,2 @@
+google-cloud-pubsub==2.21.4
+google-auth==2.29.0
