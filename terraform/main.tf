@@ -45,6 +45,7 @@ resource "google_project_service" "apis" {
     "monitoring.googleapis.com",
     "logging.googleapis.com",
     "artifactregistry.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
   ])
 
   service            = each.value
