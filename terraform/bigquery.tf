@@ -1,11 +1,11 @@
 # ── BigQuery Dataset ──────────────────────────────────────────────────────────
 
 resource "google_bigquery_dataset" "transactions" {
-  dataset_id                  = var.bq_dataset
-  friendly_name               = "Transactions Analytics"
-  description                 = "Real-time financial transaction data from the analytics engine"
-  location                    = "US"
-  delete_contents_on_destroy  = false
+  dataset_id                 = var.bq_dataset
+  friendly_name              = "Transactions Analytics"
+  description                = "Real-time financial transaction data from the analytics engine"
+  location                   = "US"
+  delete_contents_on_destroy = false
 
   labels = {
     env     = "production"
@@ -18,22 +18,22 @@ resource "google_bigquery_dataset" "transactions" {
 # ── Shared schema (DRY via locals) ────────────────────────────────────────────
 locals {
   base_schema = [
-    { name = "transaction_id",  type = "STRING",    mode = "REQUIRED", description = "UUID for the transaction" },
-    { name = "timestamp",       type = "TIMESTAMP", mode = "REQUIRED", description = "Transaction wall-clock time" },
-    { name = "user_id",         type = "STRING",    mode = "REQUIRED", description = "Originating user" },
-    { name = "merchant",        type = "STRING",    mode = "NULLABLE", description = "Merchant name" },
-    { name = "amount",          type = "FLOAT64",   mode = "REQUIRED", description = "Transaction amount" },
-    { name = "currency",        type = "STRING",    mode = "NULLABLE", description = "ISO 4217 currency code" },
-    { name = "card_type",       type = "STRING",    mode = "NULLABLE", description = "VISA / MASTERCARD / AMEX / DISCOVER" },
-    { name = "card_last4",      type = "STRING",    mode = "NULLABLE", description = "Last 4 digits of card" },
-    { name = "country_code",    type = "STRING",    mode = "NULLABLE", description = "ISO 3166-1 alpha-2 country" },
-    { name = "is_international",type = "BOOL",      mode = "NULLABLE", description = "Cross-border transaction flag" },
-    { name = "device_id",       type = "STRING",    mode = "NULLABLE", description = "Device fingerprint" },
-    { name = "ip_address",      type = "STRING",    mode = "NULLABLE", description = "Client IP (anonymised)" },
-    { name = "processed_at",    type = "TIMESTAMP", mode = "REQUIRED", description = "Function processing time (partition key)" },
-    { name = "is_high_risk",    type = "BOOL",      mode = "REQUIRED", description = "True when risk rules fired" },
-    { name = "risk_reasons",    type = "STRING",    mode = "NULLABLE", description = "JSON array of risk rule descriptions" },
-    { name = "risk_threshold",  type = "FLOAT64",   mode = "NULLABLE", description = "Threshold used during evaluation" },
+    { name = "transaction_id", type = "STRING", mode = "REQUIRED", description = "UUID for the transaction" },
+    { name = "timestamp", type = "TIMESTAMP", mode = "REQUIRED", description = "Transaction wall-clock time" },
+    { name = "user_id", type = "STRING", mode = "REQUIRED", description = "Originating user" },
+    { name = "merchant", type = "STRING", mode = "NULLABLE", description = "Merchant name" },
+    { name = "amount", type = "FLOAT64", mode = "REQUIRED", description = "Transaction amount" },
+    { name = "currency", type = "STRING", mode = "NULLABLE", description = "ISO 4217 currency code" },
+    { name = "card_type", type = "STRING", mode = "NULLABLE", description = "VISA / MASTERCARD / AMEX / DISCOVER" },
+    { name = "card_last4", type = "STRING", mode = "NULLABLE", description = "Last 4 digits of card" },
+    { name = "country_code", type = "STRING", mode = "NULLABLE", description = "ISO 3166-1 alpha-2 country" },
+    { name = "is_international", type = "BOOL", mode = "NULLABLE", description = "Cross-border transaction flag" },
+    { name = "device_id", type = "STRING", mode = "NULLABLE", description = "Device fingerprint" },
+    { name = "ip_address", type = "STRING", mode = "NULLABLE", description = "Client IP (anonymised)" },
+    { name = "processed_at", type = "TIMESTAMP", mode = "REQUIRED", description = "Function processing time (partition key)" },
+    { name = "is_high_risk", type = "BOOL", mode = "REQUIRED", description = "True when risk rules fired" },
+    { name = "risk_reasons", type = "STRING", mode = "NULLABLE", description = "JSON array of risk rule descriptions" },
+    { name = "risk_threshold", type = "FLOAT64", mode = "NULLABLE", description = "Threshold used during evaluation" },
   ]
 }
 
@@ -95,7 +95,7 @@ resource "google_bigquery_table" "view_hourly_volume" {
   table_id   = "view_hourly_volume"
 
   view {
-    query = <<-SQL
+    query          = <<-SQL
       SELECT
         TIMESTAMP_TRUNC(processed_at, HOUR) AS hour,
         COUNT(*)                             AS txn_count,

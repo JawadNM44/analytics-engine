@@ -26,7 +26,7 @@ resource "google_monitoring_dashboard" "analytics" {
               plotType   = "LINE"
               targetAxis = "Y1"
             }]
-            yAxis = { label = "executions/min", scale = "LINEAR" }
+            yAxis             = { label = "executions/min", scale = "LINEAR" }
             timeshiftDuration = "0s"
           }
         },
