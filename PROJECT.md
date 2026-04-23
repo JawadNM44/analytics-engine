@@ -149,11 +149,39 @@ pytest tests/ -v
 
 ---
 
+## Huidige status CI/CD (Feature 1 — in progress)
+
+**Wat werkt:**
+- ✅ GitHub Secrets ingesteld (GCP_PROJECT_ID, WIF_PROVIDER, WIF_SA_EMAIL)
+- ✅ GitHub Environment `production` aangemaakt met approval gate
+- ✅ Unit Tests stap → 15/15 groen
+- ✅ GCS remote state bucket aangemaakt (`project-1f299b47-tf-state`)
+- ✅ State gemigreerd van lokaal naar GCS
+- ✅ Cloud Resource Manager API ingeschakeld
+
+**Nog te fixen:**
+- ❌ Terraform Plan in CI geeft nog errors — run #13 loopt nog / moet gecheckt worden
+- Laatste fout was: `cloudresourcemanager.googleapis.com` niet ingeschakeld → opgelost in commit `b51c244`
+- Volgende run (#13) zou `Plan: 0 to add, 0 to change, 0 to destroy` moeten tonen
+
+**Morgen als eerste doen:**
+1. Check run #13 op https://github.com/JawadNM44/analytics-engine/actions
+2. Als er nog een error is → foutmelding lezen en fixen
+3. Als groen → Feature 1 klaar, door naar Feature 2 (Looker Studio)
+
 ## Commit geschiedenis
 
 ```
-cbd9b94  fix(outputs): correct monitoring dashboard URL format
-f685ee4  fix(monitoring): switch dashboard to cloudfunctions.googleapis.com metrics
-3ae307c  fix: resolve Cloud Function build failures on new GCP projects
-3b93b97  Initial commit: Serverless Real-Time Analytics Engine
+b51c244  fix(terraform): enable Cloud Resource Manager API for CI
+0aa873e  feat(terraform): configure GCS remote state backend
+16fc34c  fix(tests): resolve import errors in CI environment
+eb71ccb  fix: remove terraform.tfvars from tracking
+92385d6  style(terraform): auto-format all .tf files for CI fmt check
+7358c85  docs(readme): add live results summary to project description
+ac7d50e  docs: add detailed feature roadmap with engineering context
+e0a90d5  docs: add PROJECT.md as living project context document
+562121c  fix(outputs): correct monitoring dashboard URL format
+007d87e  fix(monitoring): switch to cloudfunctions.googleapis.com metrics
+da306bc  fix: resolve Cloud Function build failures on new GCP projects
+e94e606  Initial commit: Serverless Real-Time Analytics Engine
 ```
