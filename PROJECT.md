@@ -86,12 +86,16 @@ https://console.cloud.google.com/monitoring/dashboards/custom/d8f2e3a1-8c05-4241
 
 ## Wat er NIET is / volgende stappen
 
-- [ ] Looker Studio dashboard op BigQuery (business inzicht laag)
-- [ ] GitHub Secrets instellen voor CI/CD (WIF_PROVIDER, WIF_SA_EMAIL, GCP_PROJECT_ID)
-- [ ] Producer draaien als Cloud Run job (nu alleen lokaal)
-- [ ] Velocity detection (rapid-fire transacties van zelfde user)
-- [ ] Data exporteren naar andere systemen (Pub/Sub naar meerdere consumers)
-- [ ] Load testing rapport
+Zie **FEATURES.md** voor volledige uitleg per feature.
+
+| # | Feature | Moeilijkheid | Impact |
+|---|---------|-------------|--------|
+| 1 | GitHub Secrets instellen (CI/CD voltooien) | ⭐ | ⭐⭐⭐⭐⭐ |
+| 2 | Looker Studio dashboard (business laag) | ⭐⭐ | ⭐⭐⭐⭐⭐ |
+| 3 | Velocity detection (fraude upgrade) | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| 4 | Producer als Cloud Run Job | ⭐⭐⭐ | ⭐⭐⭐ |
+| 5 | Fan-out: meerdere Pub/Sub consumers | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| 6 | Load testing rapport | ⭐⭐ | ⭐⭐⭐ |
 
 ---
 
