@@ -16,11 +16,10 @@ terraform {
     }
   }
 
-  # Uncomment to use GCS for remote state (recommended for team use)
-  # backend "gcs" {
-  #   bucket = "your-tf-state-bucket"
-  #   prefix = "analytics-engine/state"
-  # }
+  backend "gcs" {
+    bucket = "project-1f299b47-tf-state"
+    prefix = "analytics-engine/state"
+  }
 }
 
 provider "google" {

@@ -1,6 +1,5 @@
 # ── Terraform ─────────────────────────────────────────────────────────────────
 .terraform/
-.terraform.lock.hcl
 *.tfstate
 *.tfstate.backup
 *.tfvars          # Contains real project IDs / secrets — NEVER commit
