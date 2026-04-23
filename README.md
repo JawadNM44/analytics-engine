@@ -2,6 +2,8 @@
 
 A fully automated, event-driven data pipeline on GCP that ingests, processes, and analyzes 100,000+ simulated financial transactions in real-time. Zero idle cost (scales to zero). Entirely deployed via Terraform.
 
+**Live results:** 200,000 transactions processed · $55M simulated volume · 46.5% flagged as high-risk · 0 errors
+
 ## Architecture
 
 ```
