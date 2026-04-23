@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Cloud Function (2nd Gen) — Pub/Sub-triggered transaction processor.
 
