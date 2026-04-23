@@ -27,7 +27,7 @@ resource "google_storage_bucket" "function_artifacts" {
 
   lifecycle_rule {
     condition { age = 30 }
-    action    { type = "Delete" }
+    action { type = "Delete" }
   }
 }
 
@@ -61,9 +61,9 @@ resource "google_cloudfunctions2_function" "processor" {
   description = "Validates, scores, and streams financial transactions to BigQuery"
 
   build_config {
-    runtime          = "python312"
-    entry_point      = "process_transaction"
-    service_account  = google_service_account.build_sa.id
+    runtime         = "python312"
+    entry_point     = "process_transaction"
+    service_account = google_service_account.build_sa.id
 
     source {
       storage_source {
@@ -74,19 +74,19 @@ resource "google_cloudfunctions2_function" "processor" {
   }
 
   service_config {
-    min_instance_count             = var.function_min_instances
-    max_instance_count             = var.function_max_instances
-    available_memory               = "256M"
-    timeout_seconds                = 60
+    min_instance_count               = var.function_min_instances
+    max_instance_count               = var.function_max_instances
+    available_memory                 = "256M"
+    timeout_seconds                  = 60
     max_instance_request_concurrency = 1
-    service_account_email          = google_service_account.function_sa.email
+    service_account_email            = google_service_account.function_sa.email
 
     environment_variables = {
-      GCP_PROJECT_ID          = var.project_id
-      BQ_DATASET              = var.bq_dataset
-      BQ_TABLE_ALL            = var.bq_table_all
-      BQ_TABLE_RISK           = var.bq_table_risk
-      RISK_THRESHOLD_SECRET   = google_secret_manager_secret.risk_threshold.secret_id
+      GCP_PROJECT_ID        = var.project_id
+      BQ_DATASET            = var.bq_dataset
+      BQ_TABLE_ALL          = var.bq_table_all
+      BQ_TABLE_RISK         = var.bq_table_risk
+      RISK_THRESHOLD_SECRET = google_secret_manager_secret.risk_threshold.secret_id
     }
   }
 
