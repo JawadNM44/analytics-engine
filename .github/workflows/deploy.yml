@@ -92,6 +92,13 @@ jobs:
           path: terraform/tfplan
           retention-days: 1
 
+      - name: Upload function zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-zip
+          path: .build/function.zip
+          retention-days: 1
+
   # ── 3. Terraform Apply (main branch only) ────────────────────────────────────
   terraform-apply:
     name: Terraform Apply
@@ -120,11 +127,14 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Create build directory for function zip
-        run: mkdir -p ../.build
-
       - name: Terraform Init
         run: terraform init
+
+      - name: Download function zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: function-zip
+          path: .build
 
       - name: Download plan artifact
         uses: actions/download-artifact@v4
