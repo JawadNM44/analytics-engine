@@ -145,6 +145,13 @@ resource "google_project_iam_member" "cicd_editor" {
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
 }
 
+# roles/editor excludes setIamPolicy — CI needs this to manage IAM bindings
+resource "google_project_iam_member" "cicd_iam_admin" {
+  project = var.project_id
+  role    = "roles/resourcemanager.projectIamAdmin"
+  member  = "serviceAccount:${google_service_account.cicd_sa.email}"
+}
+
 # roles/editor excludes secretmanager.versions.access by design —
 # Terraform plan needs to read secret versions to detect drift
 resource "google_project_iam_member" "cicd_secret_accessor" {
