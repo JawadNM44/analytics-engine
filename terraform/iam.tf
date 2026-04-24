@@ -145,6 +145,22 @@ resource "google_project_iam_member" "cicd_editor" {
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
 }
 
+# roles/editor excludes secretmanager.versions.access by design —
+# Terraform plan needs to read secret versions to detect drift
+resource "google_project_iam_member" "cicd_secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.cicd_sa.email}"
+}
+
+# roles/editor excludes getIamPolicy on Pub/Sub subscriptions —
+# Terraform plan needs this to read current IAM state for drift detection
+resource "google_project_iam_member" "cicd_security_reviewer" {
+  project = var.project_id
+  role    = "roles/iam.securityReviewer"
+  member  = "serviceAccount:${google_service_account.cicd_sa.email}"
+}
+
 resource "google_service_account_iam_member" "github_impersonate_cicd" {
   service_account_id = google_service_account.cicd_sa.name
   role               = "roles/iam.workloadIdentityUser"
