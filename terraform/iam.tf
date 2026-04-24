@@ -153,6 +153,14 @@ resource "google_project_iam_member" "cicd_secret_accessor" {
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
 }
 
+# roles/editor excludes getIamPolicy on Pub/Sub subscriptions —
+# Terraform plan needs this to read current IAM state for drift detection
+resource "google_project_iam_member" "cicd_security_reviewer" {
+  project = var.project_id
+  role    = "roles/iam.securityReviewer"
+  member  = "serviceAccount:${google_service_account.cicd_sa.email}"
+}
+
 resource "google_service_account_iam_member" "github_impersonate_cicd" {
   service_account_id = google_service_account.cicd_sa.name
   role               = "roles/iam.workloadIdentityUser"
