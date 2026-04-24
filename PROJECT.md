@@ -149,7 +149,20 @@ pytest tests/ -v
 
 ---
 
-## Huidige status CI/CD (Feature 1 — in progress)
+## Huidige status CI/CD (Feature 1 — Apply wacht op goedkeuring)
+
+**Wat nu werkt:**
+- ✅ PR #1 gemerged naar main met correcte branch/PR workflow
+- ✅ Tests groen (15/15)
+- ✅ Terraform Plan groen (4 to add, 1 to destroy — verwacht)
+- ✅ CI SA heeft alle permissies: secretAccessor, securityReviewer, pubsub.admin
+- ⏳ Terraform Apply wacht op goedkeuring in GitHub → ga naar Actions → keur "production" goed
+
+**Daarna direct:**
+- Feature 2: Looker Studio dashboard (geen code, 30 min)
+- Altijd werken via branch → kleine commits → PR → merge
+
+## VORIGE Huidige status CI/CD (Feature 1 — in progress)
 
 **Wat werkt:**
 - ✅ GitHub Secrets ingesteld (GCP_PROJECT_ID, WIF_PROVIDER, WIF_SA_EMAIL)
