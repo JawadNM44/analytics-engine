@@ -120,6 +120,9 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
+      - name: Create build directory for function zip
+        run: mkdir -p ../.build
+
       - name: Terraform Init
         run: terraform init
 
