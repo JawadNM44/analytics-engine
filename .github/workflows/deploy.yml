@@ -37,7 +37,7 @@ jobs:
                       google-cloud-secret-manager google-auth
 
       - name: Run unit tests
-        run: pytest tests/ -v --tb=short --cov=function --cov-report=term-missing
+        run: pytest tests/ -v --tb=short --cov=function --cov=function-crypto --cov-report=term-missing
 
   # ── 2. Terraform Validate + Plan ─────────────────────────────────────────────
   terraform-plan:
