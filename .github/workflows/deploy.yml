@@ -188,5 +188,6 @@ jobs:
             --cpu 1 \
             --port 8080 \
             --service-account sa-coinbase-producer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --build-service-account projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/sa-function-build@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --set-env-vars "^|^GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|PUBSUB_TOPIC=crypto-trades|PRODUCT_IDS=BTC-USD,ETH-USD,SOL-USD" \
             --quiet
