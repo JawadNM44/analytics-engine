@@ -69,6 +69,25 @@ variable "bq_partition_expiry_days" {
   default     = 365
 }
 
+# ── Crypto pipeline (Coinbase WebSocket → Pub/Sub → BigQuery) ────────────────
+variable "crypto_pubsub_topic" {
+  description = "Pub/Sub topic for live Coinbase trade events"
+  type        = string
+  default     = "crypto-trades"
+}
+
+variable "crypto_pubsub_dead_letter_topic" {
+  description = "Dead-letter Pub/Sub topic for crypto trades"
+  type        = string
+  default     = "crypto-trades-dead-letter"
+}
+
+variable "crypto_bq_table" {
+  description = "BigQuery table for raw crypto trades"
+  type        = string
+  default     = "crypto_trades"
+}
+
 variable "alert_email" {
   description = "Email address for Cloud Monitoring alerts"
   type        = string

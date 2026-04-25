@@ -99,6 +99,20 @@ resource "google_project_iam_member" "producer_pubsub_publisher" {
   member  = "serviceAccount:${google_service_account.producer_sa.email}"
 }
 
+# ── Service Account: Coinbase Producer (Cloud Run, 24/7) ─────────────────────
+# Dedicated SA — least privilege: publish only to the crypto-trades topic.
+resource "google_service_account" "coinbase_producer_sa" {
+  account_id   = "sa-coinbase-producer"
+  display_name = "Coinbase Producer SA"
+  description  = "Cloud Run service account for the live Coinbase WebSocket bridge"
+}
+
+resource "google_pubsub_topic_iam_member" "coinbase_producer_publisher" {
+  topic  = google_pubsub_topic.crypto_trades.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:${google_service_account.coinbase_producer_sa.email}"
+}
+
 # ── Eventarc SA needs pubsub.subscriber ───────────────────────────────────────
 resource "google_project_iam_member" "eventarc_pubsub_sub" {
   project = var.project_id

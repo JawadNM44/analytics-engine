@@ -2,7 +2,10 @@
 .terraform/
 *.tfstate
 *.tfstate.backup
-*.tfvars          # Contains real project IDs / secrets — NEVER commit
+# Contains real project IDs / secrets — NEVER commit
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
 tfplan
 
 # ── Build artefacts ───────────────────────────────────────────────────────────
