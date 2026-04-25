@@ -182,6 +182,17 @@ resource "google_project_iam_member" "cicd_security_reviewer" {
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
 }
 
+# roles/resourcemanager.projectIamAdmin only covers project-level IAM
+# bindings. Setting IAM *on an individual service-account resource*
+# (e.g. granting the BQ Data Transfer agent token-creator on
+# sa-bqml-trainer) requires iam.serviceAccounts.setIamPolicy, which
+# only roles/iam.serviceAccountAdmin grants at the SA-resource level.
+resource "google_project_iam_member" "cicd_sa_admin" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountAdmin"
+  member  = "serviceAccount:${google_service_account.cicd_sa.email}"
+}
+
 resource "google_service_account_iam_member" "github_impersonate_cicd" {
   service_account_id = google_service_account.cicd_sa.name
   role               = "roles/iam.workloadIdentityUser"
