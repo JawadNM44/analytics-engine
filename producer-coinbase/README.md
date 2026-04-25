@@ -32,6 +32,20 @@ python main.py
 | `BATCH_MAX_MESSAGES` | `100` | Pub/Sub publisher batch size |
 | `BATCH_MAX_LATENCY` | `0.25` | Seconds before flushing a partial batch |
 | `HEARTBEAT_SECONDS` | `30` | Throughput log interval |
+| `PORT` | `8080` | HTTP healthcheck port (Cloud Run sets this) |
+
+## Healthcheck
+
+The container exposes a tiny aiohttp server on `$PORT`:
+
+| Path | Returns |
+|---|---|
+| `GET /` | `200 coinbase-producer ok` |
+| `GET /health` | `200` if WS is connected and a trade was seen in the last 60s; `503` otherwise. Body: `{status, ws_connected, seconds_since_last_trade}` |
+
+Cloud Run / k8s liveness probes can hit `/health` to roll the container if the WebSocket goes silent.
+
+CLI runs that don't need the HTTP server can pass `--no-http`.
 
 ## Output schema (`crypto_trades` table)
 

@@ -27,6 +27,7 @@ import time
 from datetime import datetime, timezone
 
 import websockets
+from aiohttp import web
 from google.cloud import pubsub_v1
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -45,9 +46,17 @@ BATCH_MAX_LATENCY = float(os.environ.get("BATCH_MAX_LATENCY", 0.25))  # seconds
 
 HEARTBEAT_SECONDS = int(os.environ.get("HEARTBEAT_SECONDS", 30))
 
+# Cloud Run healthcheck: must bind to $PORT (default 8080) for the container
+# to be considered healthy.
+HTTP_PORT = int(os.environ.get("PORT", 8080))
+
 # Reconnect: exponential backoff capped at 60s
 RECONNECT_INITIAL = 1.0
 RECONNECT_MAX = 60.0
+
+# Liveness state — flipped to True after first successful WS connection,
+# used by /health for Cloud Run / k8s probes.
+_alive = {"ws_connected": False, "last_trade_ts": 0.0}
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -141,6 +150,7 @@ async def consume_once(
         }
         await ws.send(json.dumps(subscribe))
         log.info("Subscribed to matches for %s", ",".join(PRODUCT_IDS))
+        _alive["ws_connected"] = True
 
         async for raw in ws:
             if _shutdown.is_set():
@@ -160,6 +170,7 @@ async def consume_once(
 
             counters["trades"] += 1
             counters["volume_usd"] += trade["volume_usd"]
+            _alive["last_trade_ts"] = time.time()
 
             if dry_run:
                 log.info(
@@ -263,6 +274,7 @@ async def run_forever(dry_run: bool) -> None:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # noqa: BLE001 — we want to retry on anything
+                _alive["ws_connected"] = False
                 log.warning(
                     "WebSocket loop error: %s — reconnecting in %.1fs",
                     exc,
@@ -296,6 +308,53 @@ async def run_forever(dry_run: bool) -> None:
         )
 
 
+# ── HTTP healthcheck server (required for Cloud Run) ─────────────────────────
+async def _health(_request: web.Request) -> web.Response:
+    """
+    Returns 200 only when the WebSocket is connected AND we've seen a trade
+    in the last 60 seconds (catches silent half-open connections).
+    """
+    now = time.time()
+    fresh = (now - _alive["last_trade_ts"]) < 60
+    healthy = _alive["ws_connected"] and (
+        fresh or _alive["last_trade_ts"] == 0  # allow startup grace
+    )
+    body = {
+        "status": "ok" if healthy else "degraded",
+        "ws_connected": _alive["ws_connected"],
+        "seconds_since_last_trade": (
+            round(now - _alive["last_trade_ts"], 2)
+            if _alive["last_trade_ts"]
+            else None
+        ),
+    }
+    return web.json_response(body, status=200 if healthy else 503)
+
+
+async def _root(_request: web.Request) -> web.Response:
+    return web.Response(text="coinbase-producer ok\n")
+
+
+async def _start_http_server() -> web.AppRunner:
+    app = web.Application()
+    app.router.add_get("/", _root)
+    app.router.add_get("/health", _health)
+    runner = web.AppRunner(app, access_log=None)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", HTTP_PORT)
+    await site.start()
+    log.info("HTTP healthcheck listening on :%d", HTTP_PORT)
+    return runner
+
+
+async def _serve(dry_run: bool) -> None:
+    runner = await _start_http_server()
+    try:
+        await run_forever(dry_run=dry_run)
+    finally:
+        await runner.cleanup()
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -304,6 +363,11 @@ def main() -> None:
         action="store_true",
         help="Print trades to stdout instead of publishing to Pub/Sub.",
     )
+    parser.add_argument(
+        "--no-http",
+        action="store_true",
+        help="Skip the HTTP healthcheck server (use for local CLI runs).",
+    )
     args = parser.parse_args()
 
     loop = asyncio.new_event_loop()
@@ -311,7 +375,10 @@ def main() -> None:
     _install_signal_handlers(loop)
 
     try:
-        loop.run_until_complete(run_forever(dry_run=args.dry_run))
+        if args.no_http:
+            loop.run_until_complete(run_forever(dry_run=args.dry_run))
+        else:
+            loop.run_until_complete(_serve(dry_run=args.dry_run))
     finally:
         loop.close()
 

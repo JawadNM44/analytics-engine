@@ -151,3 +151,41 @@ jobs:
 
       - name: Output infrastructure endpoints
         run: terraform output -json
+
+  # ── 4. Deploy Coinbase Producer (long-running Cloud Run worker) ─────────────
+  deploy-coinbase-producer:
+    name: Deploy Coinbase Producer
+    runs-on: ubuntu-latest
+    needs: terraform-apply
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SA_EMAIL }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy coinbase-producer to Cloud Run (source-based)
+        run: |
+          gcloud run deploy coinbase-producer \
+            --source ./producer-coinbase \
+            --region us-central1 \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --no-cpu-throttling \
+            --min-instances 1 \
+            --max-instances 1 \
+            --memory 256Mi \
+            --cpu 1 \
+            --port 8080 \
+            --service-account sa-coinbase-producer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --set-env-vars "^|^GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|PUBSUB_TOPIC=crypto-trades|PRODUCT_IDS=BTC-USD,ETH-USD,SOL-USD" \
+            --quiet
