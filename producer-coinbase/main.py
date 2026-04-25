@@ -223,8 +223,8 @@ async def heartbeat(counters: dict) -> None:
         d_vol = counters["volume_usd"] - last["volume_usd"]
 
         log.info(
-            "♥ trades=%d (+%d) published=%d (+%d) errors=%d vol_usd=$%.2f (+$%.2f) "
-            "rate=%.1f trades/s",
+            "[heartbeat] trades=%d (+%d) published=%d (+%d) errors=%d "
+            "vol_usd=$%.2f (+$%.2f) rate=%.1f trades/s",
             counters["trades"],
             d_trades,
             counters["published"],
