@@ -97,6 +97,7 @@ jobs:
         with:
           name: function-build
           path: .build/
+          include-hidden-files: true
           retention-days: 1
 
   # ── 3. Terraform Apply (main branch only) ────────────────────────────────────
