@@ -46,6 +46,7 @@ resource "google_project_service" "apis" {
     "logging.googleapis.com",
     "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "bigquerydatatransfer.googleapis.com",
   ])
 
   service            = each.value

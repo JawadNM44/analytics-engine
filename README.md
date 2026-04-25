@@ -119,6 +119,48 @@ GROUP BY 1
 ORDER BY 2 DESC;
 ```
 
+## Live Crypto Pipeline (Coinbase WebSocket)
+
+A second, independent pipeline runs alongside the synthetic one. It subscribes to the **public Coinbase Exchange WebSocket** (`wss://ws-feed.exchange.coinbase.com`, `matches` channel) for `BTC-USD`, `ETH-USD`, `SOL-USD`, and republishes every trade to Pub/Sub → Cloud Function → BigQuery. End-to-end latency: **<2s** from exchange to queryable row.
+
+Components:
+
+- `producer-coinbase/` — async Python WebSocket client on Cloud Run (`min-instances=1`, `--no-cpu-throttling`, dedicated SA `sa-coinbase-producer` with `pubsub.publisher` only on the `crypto-trades` topic).
+- `function-crypto/` — Pub/Sub-triggered Cloud Function that validates and streams to BigQuery with `insertId = trade_id` for idempotent dedup.
+- BigQuery `crypto_trades` — partitioned by ingestion day, clustered on `product_id + side`.
+
+## Anomaly Detection (BigQuery ML)
+
+Two layers, deployed as views and a scheduled training query in `terraform/bqml.tf`:
+
+**Layer 1 — statistical (works immediately):**
+
+| View | What it surfaces |
+|---|---|
+| `view_crypto_anomalies_zscore` | Per-minute volume spikes via 60-min rolling z-score (\|z\|>3) |
+| `view_crypto_whale_trades` | Single trades above the 99th percentile per symbol per day |
+| `view_crypto_market_summary` | Per-hour buy/sell imbalance + VWAP |
+| `view_crypto_ohlcv_1m` | Per-minute OHLCV candles |
+
+**Layer 2 — ML (kicks in after ~24h of data):**
+
+A nightly scheduled query (`crypto-volume-forecast-nightly-training`, runs 02:00 UTC as `sa-bqml-trainer`) trains an `ARIMA_PLUS` model — one time-series per symbol, auto-tuned (p,d,q), with seasonality decomposition and confidence intervals.
+
+```sql
+-- Flag minutes where volume falls outside the 95% confidence interval
+SELECT *
+FROM ML.DETECT_ANOMALIES(
+  MODEL `transactions_ds.model_crypto_volume_forecast`,
+  STRUCT(0.95 AS anomaly_prob_threshold),
+  (SELECT minute, product_id, volume_usd
+   FROM `transactions_ds.view_crypto_volume_1m`
+   WHERE minute >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 6 HOUR))
+)
+WHERE is_anomaly;
+```
+
+Sample queries for all views and ML functions live in [`analytics/bqml_queries.sql`](analytics/bqml_queries.sql).
+
 ## CI/CD Setup (GitHub Actions)
 
 The pipeline uses **keyless authentication** via Workload Identity Federation — no service account JSON keys stored in GitHub.
