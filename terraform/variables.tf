@@ -88,6 +88,12 @@ variable "crypto_bq_table" {
   default     = "crypto_trades"
 }
 
+variable "crypto_function_name" {
+  description = "Name of the crypto-trade Cloud Function"
+  type        = string
+  default     = "process-crypto-trade"
+}
+
 variable "alert_email" {
   description = "Email address for Cloud Monitoring alerts"
   type        = string

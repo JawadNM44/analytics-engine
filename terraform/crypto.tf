@@ -154,3 +154,83 @@ resource "google_bigquery_table" "view_crypto_ohlcv_1m" {
 
   depends_on = [google_bigquery_table.crypto_trades]
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloud Function 2nd Gen — process-crypto-trade
+# Subscribes to crypto-trades topic, validates, and streams to BigQuery.
+# ─────────────────────────────────────────────────────────────────────────────
+
+data "archive_file" "crypto_function_zip" {
+  type        = "zip"
+  output_path = "${path.module}/../.build/function-crypto.zip"
+
+  source {
+    content  = file("${path.module}/../function-crypto/main.py")
+    filename = "main.py"
+  }
+
+  source {
+    content  = file("${path.module}/../function-crypto/requirements.txt")
+    filename = "requirements.txt"
+  }
+}
+
+resource "google_storage_bucket_object" "crypto_function_zip" {
+  name   = "function-crypto-${data.archive_file.crypto_function_zip.output_sha256}.zip"
+  bucket = google_storage_bucket.function_artifacts.name
+  source = data.archive_file.crypto_function_zip.output_path
+}
+
+resource "google_cloudfunctions2_function" "crypto_processor" {
+  provider    = google-beta
+  name        = var.crypto_function_name
+  location    = var.region
+  description = "Validates and streams live Coinbase trade events to BigQuery"
+
+  build_config {
+    runtime         = "python312"
+    entry_point     = "process_crypto_trade"
+    service_account = google_service_account.build_sa.id
+
+    source {
+      storage_source {
+        bucket = google_storage_bucket.function_artifacts.name
+        object = google_storage_bucket_object.crypto_function_zip.name
+      }
+    }
+  }
+
+  service_config {
+    min_instance_count               = 0
+    max_instance_count               = 50
+    available_memory                 = "256M"
+    timeout_seconds                  = 30
+    max_instance_request_concurrency = 1
+    service_account_email            = google_service_account.function_sa.email
+
+    environment_variables = {
+      GCP_PROJECT_ID  = var.project_id
+      BQ_DATASET      = var.bq_dataset
+      BQ_TABLE_CRYPTO = var.crypto_bq_table
+    }
+  }
+
+  event_trigger {
+    trigger_region        = var.region
+    event_type            = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic          = google_pubsub_topic.crypto_trades.id
+    retry_policy          = "RETRY_POLICY_RETRY"
+    service_account_email = google_service_account.function_sa.email
+  }
+
+  depends_on = [
+    google_project_service.apis,
+    google_storage_bucket_object.crypto_function_zip,
+    google_bigquery_table.crypto_trades,
+  ]
+}
+
+output "crypto_function_uri" {
+  value       = google_cloudfunctions2_function.crypto_processor.service_config[0].uri
+  description = "Cloud Run URL backing the crypto-trade Cloud Function"
+}
