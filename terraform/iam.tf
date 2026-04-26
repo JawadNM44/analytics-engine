@@ -205,6 +205,15 @@ resource "google_project_iam_member" "cicd_bq_admin" {
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
 }
 
+# Same eventual-consistency story as wait_for_cicd_sa_admin_propagation:
+# the bigquery.admin grant must propagate (~60s) before any
+# google_bigquery_dataset_iam_member resource created in the same plan
+# can use it.
+resource "time_sleep" "wait_for_cicd_bq_admin_propagation" {
+  depends_on      = [google_project_iam_member.cicd_bq_admin]
+  create_duration = "90s"
+}
+
 # GCP IAM is eventually consistent — a freshly-granted role typically
 # propagates within ~60s, but Terraform fires dependent operations
 # immediately, which trips a 403 on the first apply. Wait for propagation
