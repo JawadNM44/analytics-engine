@@ -20,12 +20,24 @@ os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("BQ_DATASET", "transactions_ds")
 os.environ.setdefault("ALLOWED_SYMBOLS", "BTC-USD,ETH-USD")
 
-sys.path.insert(
-    0,
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "api-public"),
-)
+# Three directories in this repo each have a main.py (function/,
+# function-crypto/, api-public/) and pytest's sys.modules cache means a
+# bare `import main` inside one test file leaks across the whole run.
+# Load the api-public module under a unique name via importlib instead,
+# leaving sys.modules["main"] for whichever sibling test happened to set it.
+import importlib.util  # noqa: E402
 
-import main as api  # noqa: E402
+_API_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "api-public"
+)
+# Add api-public to path so `from bq import BigQueryClient` inside main.py works.
+sys.path.insert(0, _API_DIR)
+
+_spec = importlib.util.spec_from_file_location(
+    "api_public_main", os.path.join(_API_DIR, "main.py")
+)
+api = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(api)
 
 from fastapi.testclient import TestClient  # noqa: E402
 
