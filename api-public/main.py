@@ -124,6 +124,7 @@ def root() -> dict:
             "GET /candles/{symbol}?minutes=60",
             "GET /anomalies/recent?limit=20",
             "GET /anomalies/ml?hours=6",
+            "GET /forecast/{symbol}?hours=6",
             "GET /whales/recent?limit=20",
         ],
         "docs": "/docs",
@@ -294,6 +295,46 @@ def anomalies_ml(
     )
     response.headers["Cache-Control"] = CACHE_HEADER
     return {"layer": "ml_arima_plus", "window_hours": hours, "anomalies": rows}
+
+
+@app.get("/forecast/{symbol}")
+def forecast(
+    response: Response,
+    symbol: Annotated[str, Path(description="e.g. BTC-USD")],
+    hours: Annotated[int, Query(ge=1, le=24)] = 6,
+) -> dict:
+    """
+    Per-minute volume + ML model's confidence interval for one symbol.
+    Unlike /anomalies/ml this returns *every* point (not just anomalies),
+    so the dashboard can render a forecast-vs-actual chart with a shaded
+    confidence band.
+    """
+    s = _validate_symbol(symbol)
+    rows = bq.run_query(
+        """
+        SELECT
+          minute,
+          ROUND(volume_usd, 2)        AS volume_usd,
+          ROUND(lower_bound, 2)       AS lower_bound,
+          ROUND(upper_bound, 2)       AS upper_bound,
+          is_anomaly,
+          ROUND(anomaly_probability, 3) AS anomaly_probability
+        FROM ML.DETECT_ANOMALIES(
+          MODEL `{project}.{dataset}.model_crypto_volume_forecast`,
+          STRUCT(0.95 AS anomaly_prob_threshold),
+          (
+            SELECT minute, product_id, volume_usd
+            FROM `{project}.{dataset}.view_crypto_volume_1m`
+            WHERE minute >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @hrs HOUR)
+              AND product_id = @symbol
+          )
+        )
+        ORDER BY minute ASC
+        """,
+        params={"hrs": hours, "symbol": s},
+    )
+    response.headers["Cache-Control"] = CACHE_HEADER
+    return {"symbol": s, "window_hours": hours, "points": rows}
 
 
 @app.get("/whales/recent")
