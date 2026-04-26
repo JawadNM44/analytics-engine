@@ -31,13 +31,14 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov httpx
           # Install function deps with stubs for GCP clients
           pip install functions-framework google-cloud-bigquery \
-                      google-cloud-secret-manager google-auth
+                      google-cloud-secret-manager google-auth \
+                      fastapi
 
       - name: Run unit tests
-        run: pytest tests/ -v --tb=short --cov=function --cov=function-crypto --cov-report=term-missing
+        run: pytest tests/ -v --tb=short --cov=function --cov=function-crypto --cov=api-public --cov-report=term-missing
 
   # ── 2. Terraform Validate + Plan ─────────────────────────────────────────────
   terraform-plan:
@@ -190,4 +191,47 @@ jobs:
             --service-account sa-coinbase-producer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --build-service-account projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/sa-function-build@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --set-env-vars "^|^GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|PUBSUB_TOPIC=crypto-trades|PRODUCT_IDS=BTC-USD,ETH-USD,SOL-USD" \
+            --quiet
+
+  # ── 5. Deploy Public Crypto API (FastAPI on Cloud Run) ──────────────────────
+  deploy-public-api:
+    name: Deploy Public Crypto API
+    runs-on: ubuntu-latest
+    needs: terraform-apply
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SA_EMAIL }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # Public read-only API. Safety net is three-layered:
+      #   - --max-instances 5 caps concurrent compute
+      #   - MAX_BYTES_BILLED env caps each BQ scan to 100 MB
+      #   - sa-public-api has only dataViewer on transactions_ds + jobUser
+      - name: Deploy crypto-api to Cloud Run
+        run: |
+          gcloud run deploy crypto-api \
+            --source ./api-public \
+            --region us-central1 \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 5 \
+            --memory 256Mi \
+            --cpu 1 \
+            --port 8080 \
+            --timeout 30s \
+            --service-account sa-public-api@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --build-service-account projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/sa-function-build@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --set-env-vars "^|^GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|BQ_DATASET=transactions_ds|ALLOWED_SYMBOLS=BTC-USD,ETH-USD,SOL-USD|MAX_BYTES_BILLED=104857600" \
             --quiet
