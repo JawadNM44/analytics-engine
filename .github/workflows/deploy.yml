@@ -45,7 +45,7 @@ jobs:
                       fastapi
 
       - name: Run unit tests
-        run: pytest tests/ -v --tb=short --cov=function --cov=function-crypto --cov=api-public --cov-report=term-missing
+        run: pytest tests/ -v --tb=short --cov=function --cov=function-crypto --cov=api-public --cov=producer-coinbase --cov-report=term-missing
 
   # ── 2. Terraform Validate + Plan ─────────────────────────────────────────────
   terraform-plan:
