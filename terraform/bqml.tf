@@ -228,8 +228,10 @@ resource "google_service_account_iam_member" "bqdts_token_creator_on_trainer" {
 # ARIMA_PLUS auto-tunes (p,d,q) per series, decomposes seasonality, and
 # yields confidence intervals usable by ML.DETECT_ANOMALIES downstream.
 resource "google_bigquery_data_transfer_config" "crypto_volume_forecast_training" {
-  display_name         = "crypto-volume-forecast-nightly-training"
-  location             = var.region
+  display_name = "crypto-volume-forecast-nightly-training"
+  # BQ scheduled queries must run in the SAME location as the dataset they
+  # query — referencing the dataset's location keeps them in lockstep.
+  location             = google_bigquery_dataset.transactions.location
   data_source_id       = "scheduled_query"
   schedule             = "every day 02:00"
   service_account_name = google_service_account.bqml_trainer_sa.email
