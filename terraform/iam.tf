@@ -193,6 +193,18 @@ resource "google_project_iam_member" "cicd_sa_admin" {
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
 }
 
+# Dataset-level IAM bindings on BigQuery (google_bigquery_dataset_iam_member)
+# update the dataset's legacy "access" entries — that requires
+# bigquery.datasets.update which roles/editor does *not* always grant on
+# enterprise/sandbox-style projects. roles/bigquery.admin is the cleanest
+# scope: it lets the CI SA manage dataset IAM but is still scoped to
+# BigQuery only (no cross-service blast radius).
+resource "google_project_iam_member" "cicd_bq_admin" {
+  project = var.project_id
+  role    = "roles/bigquery.admin"
+  member  = "serviceAccount:${google_service_account.cicd_sa.email}"
+}
+
 # GCP IAM is eventually consistent — a freshly-granted role typically
 # propagates within ~60s, but Terraform fires dependent operations
 # immediately, which trips a 403 on the first apply. Wait for propagation
