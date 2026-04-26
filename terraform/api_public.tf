@@ -15,10 +15,14 @@ resource "google_service_account" "public_api_sa" {
 }
 
 # Read access on this dataset only — not project-wide bigquery.dataViewer.
+# Depends on the IAM-propagation sleep so a fresh-project Apply doesn't
+# 403 before the CI SA's bigquery.admin role has propagated.
 resource "google_bigquery_dataset_iam_member" "public_api_data_viewer" {
   dataset_id = google_bigquery_dataset.transactions.dataset_id
   role       = "roles/bigquery.dataViewer"
   member     = "serviceAccount:${google_service_account.public_api_sa.email}"
+
+  depends_on = [time_sleep.wait_for_cicd_bq_admin_propagation]
 }
 
 # Required to *run* a query (jobs are project-level, not dataset-level).
