@@ -10,13 +10,15 @@ Two production data pipelines on Google Cloud, fully Terraformed: a synthetic-tr
 
 | | |
 |---|---|
+| **Live API** | https://crypto-api-jiuqt3hfoq-uc.a.run.app · auto-docs at [`/docs`](https://crypto-api-jiuqt3hfoq-uc.a.run.app/docs) |
 | **End-to-end latency** | < 2 seconds (exchange → queryable BigQuery row) |
 | **Sustained throughput** | ~5 trades/sec across 3 symbols (BTC, ETH, SOL) |
-| **Pipeline error rate** | 0% (publish + insert) |
+| **Trades processed (single 24h window)** | 508,615 trades · ~$432.9M USD volume · 0 errors |
 | **Production incidents handled** | 6 (with postmortems in [`docs/PROJECT_DEFENSE.md`](docs/PROJECT_DEFENSE.md)) |
-| **Monthly infra cost** | ~$50–65 USD (dominated by one always-on Cloud Run worker) |
-| **Tests** | 25/25 passing, no flaky |
+| **Monthly infra cost** | ~EUR 55 (94% from one always-on Cloud Run worker — see [`docs/COSTS.md`](docs/COSTS.md)) |
+| **Tests** | 37/37 passing, no flaky |
 | **Auth** | Keyless — no JSON service-account keys exist for this project |
+| **Security model** | Threat model + verified absences in [`SECURITY.md`](SECURITY.md) |
 
 ---
 
@@ -99,6 +101,14 @@ LIMIT 50;
 ```
 
 Ten more sample queries (forecasts, whale trades, OHLCV candles, model coefficients) live in [`analytics/bqml_queries.sql`](analytics/bqml_queries.sql).
+
+Or call the API:
+
+```bash
+curl https://crypto-api-jiuqt3hfoq-uc.a.run.app/anomalies/recent?limit=10
+curl https://crypto-api-jiuqt3hfoq-uc.a.run.app/price/BTC-USD
+curl https://crypto-api-jiuqt3hfoq-uc.a.run.app/stats
+```
 
 ---
 
@@ -322,9 +332,13 @@ The Cloud Run worker is the dominant cost because a WebSocket consumer cannot sc
 
 ## Documentation
 
-- [`docs/PROJECT_DEFENSE.md`](docs/PROJECT_DEFENSE.md) — interview script: decisions with trade-offs, six incident postmortems, 20-question follow-up bank.
+- [`docs/PROJECT_DEFENSE.md`](docs/PROJECT_DEFENSE.md) — interview script: 8 architectural decisions with trade-offs, six incident postmortems, 20-question follow-up bank.
+- [`docs/COSTS.md`](docs/COSTS.md) — concrete monthly burn breakdown, levers to reduce spend, free-trial vs always-free explainer.
+- [`docs/DASHBOARD_SETUP.md`](docs/DASHBOARD_SETUP.md) — 20-minute Looker Studio dashboard build using the `view_dashboard_*` views.
+- [`SECURITY.md`](SECURITY.md) — threat model (3 adversaries), per-workload service-account scopes, verified absences.
 - [`producer-coinbase/README.md`](producer-coinbase/README.md) — WebSocket producer details and local dev.
-- [`analytics/bqml_queries.sql`](analytics/bqml_queries.sql) — runnable example queries for every view and ML function.
+- [`api-public/README.md`](api-public/README.md) — public REST API endpoints, configuration, cost protection.
+- [`analytics/bqml_queries.sql`](analytics/bqml_queries.sql) — ten runnable example queries for every view and ML function.
 
 ---
 
