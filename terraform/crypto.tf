@@ -33,51 +33,21 @@ resource "google_pubsub_topic" "crypto_trades_dead_letter" {
   depends_on = [google_project_service.apis]
 }
 
-# Subscription is created here for future Cloud Function trigger + manual
-# inspection. The Eventarc trigger will manage its own subscription, but this
-# one is useful for `gcloud pubsub subscriptions pull` debugging.
-resource "google_pubsub_subscription" "crypto_trades_sub" {
-  name  = "${var.crypto_pubsub_topic}-sub"
-  topic = google_pubsub_topic.crypto_trades.name
+# NOTE: no standalone subscription is declared on this topic.
+# The Eventarc trigger of process-crypto-trade creates and owns its own
+# subscription (eventarc-us-central1-process-crypto-trade-...). A second
+# subscription here would have no consumer, accumulating every published
+# message — the original "for debugging" subscription generated a 320k+
+# backlog within a day. For ad-hoc inspection use:
+#   gcloud pubsub subscriptions create temp-debug --topic=crypto-trades
+#   gcloud pubsub subscriptions pull temp-debug --auto-ack --limit=10
+#   gcloud pubsub subscriptions delete temp-debug
 
-  ack_deadline_seconds       = 60
-  message_retention_duration = "604800s"
-
-  retry_policy {
-    minimum_backoff = "5s"
-    maximum_backoff = "300s"
-  }
-
-  dead_letter_policy {
-    dead_letter_topic     = google_pubsub_topic.crypto_trades_dead_letter.id
-    max_delivery_attempts = 5
-  }
-
-  expiration_policy {
-    ttl = ""
-  }
-
-  # Ordered delivery so per-product trade sequence is preserved.
-  enable_message_ordering = true
-
-  labels = {
-    env     = "production"
-    service = "analytics-engine"
-    domain  = "crypto"
-  }
-}
-
-# Allow Pub/Sub service agent to forward to the dead-letter topic
+# Allow Pub/Sub service agent to forward to the dead-letter topic.
 resource "google_pubsub_topic_iam_member" "crypto_pubsub_sa_publisher" {
   topic  = google_pubsub_topic.crypto_trades_dead_letter.name
   role   = "roles/pubsub.publisher"
   member = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
-}
-
-resource "google_pubsub_subscription_iam_member" "crypto_pubsub_sa_subscriber" {
-  subscription = google_pubsub_subscription.crypto_trades_sub.name
-  role         = "roles/pubsub.subscriber"
-  member       = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
 # ── BigQuery table: crypto_trades ────────────────────────────────────────────
