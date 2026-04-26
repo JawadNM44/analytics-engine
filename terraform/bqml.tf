@@ -176,6 +176,17 @@ resource "google_bigquery_table" "view_crypto_market_summary" {
 # Layer 2 — BigQuery ML ARIMA_PLUS volume forecast
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Force creation of the BQ Data Transfer service agent SA. Just enabling
+# the API doesn't always materialise the agent — it lazy-creates on first
+# use. We need it to exist so we can grant it tokenCreator below.
+resource "google_project_service_identity" "bqdts_agent" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "bigquerydatatransfer.googleapis.com"
+
+  depends_on = [google_project_service.apis]
+}
+
 # Dedicated SA for the scheduled training query — least privilege.
 resource "google_service_account" "bqml_trainer_sa" {
   account_id   = "sa-bqml-trainer"
@@ -201,10 +212,11 @@ resource "google_project_iam_member" "bqml_trainer_job_user" {
 resource "google_service_account_iam_member" "bqdts_token_creator_on_trainer" {
   service_account_id = google_service_account.bqml_trainer_sa.name
   role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-bigquerydatatransfer.iam.gserviceaccount.com"
+  member             = "serviceAccount:${google_project_service_identity.bqdts_agent.email}"
 
   depends_on = [
     google_project_service.apis,
+    google_project_service_identity.bqdts_agent,
     time_sleep.wait_for_cicd_sa_admin_propagation,
   ]
 }
