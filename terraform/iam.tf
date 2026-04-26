@@ -193,6 +193,15 @@ resource "google_project_iam_member" "cicd_sa_admin" {
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
 }
 
+# GCP IAM is eventually consistent — a freshly-granted role typically
+# propagates within ~60s, but Terraform fires dependent operations
+# immediately, which trips a 403 on the first apply. Wait for propagation
+# before any resource-level IAM binding that needs setIamPolicy on an SA.
+resource "time_sleep" "wait_for_cicd_sa_admin_propagation" {
+  depends_on      = [google_project_iam_member.cicd_sa_admin]
+  create_duration = "90s"
+}
+
 resource "google_service_account_iam_member" "github_impersonate_cicd" {
   service_account_id = google_service_account.cicd_sa.name
   role               = "roles/iam.workloadIdentityUser"
