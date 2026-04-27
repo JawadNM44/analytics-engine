@@ -332,12 +332,15 @@ The Cloud Run worker is the dominant cost because a WebSocket consumer cannot sc
 
 ## Documentation
 
+- [`docs/LEARN_THIS_PROJECT.md`](docs/LEARN_THIS_PROJECT.md) — **full self-study curriculum**: 12 modules with prerequisites, exercises, and self-test questions per module. Use this if you want to learn (and be able to teach) every layer of this stack.
 - [`docs/PROJECT_DEFENSE.md`](docs/PROJECT_DEFENSE.md) — interview script: 8 architectural decisions with trade-offs, six incident postmortems, 20-question follow-up bank.
 - [`docs/COSTS.md`](docs/COSTS.md) — concrete monthly burn breakdown, levers to reduce spend, free-trial vs always-free explainer.
 - [`docs/DASHBOARD_SETUP.md`](docs/DASHBOARD_SETUP.md) — 20-minute Looker Studio dashboard build using the `view_dashboard_*` views.
 - [`SECURITY.md`](SECURITY.md) — threat model (3 adversaries), per-workload service-account scopes, verified absences.
+- [`CHANGELOG.md`](CHANGELOG.md) — chronological project history, including all six incident fixes.
 - [`producer-coinbase/README.md`](producer-coinbase/README.md) — WebSocket producer details and local dev.
 - [`api-public/README.md`](api-public/README.md) — public REST API endpoints, configuration, cost protection.
+- [`dashboard-streamlit/README.md`](dashboard-streamlit/README.md) — Streamlit dashboard local-dev and deploy notes.
 - [`analytics/bqml_queries.sql`](analytics/bqml_queries.sql) — ten runnable example queries for every view and ML function.
 
 ---
