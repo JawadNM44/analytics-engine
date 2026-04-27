@@ -11,7 +11,6 @@ All notable changes to this project. Format roughly follows [Keep a Changelog](h
 - **Public REST API** (`api-public/`) — FastAPI on Cloud Run with 8 endpoints, three-layer cost protection (max-instances, max-bytes-billed, symbol allow-list), dedicated `sa-public-api` SA with dataset-only `bigquery.dataViewer`. Live at `https://crypto-api-jiuqt3hfoq-uc.a.run.app`.
 - **`SECURITY.md`** — threat model (3 adversaries with specific mitigations), per-workload SA inventory, verified absences via concrete `git grep` commands.
 - **`docs/COSTS.md`** — concrete monthly burn breakdown (EUR ~55, 94% from one always-on Cloud Run worker), pause/resume levers ranked by impact, free-trial vs always-free explainer.
-- **`docs/PROJECT_DEFENSE.md`** — interview script following the project-deep-dive frame: 8 architectural decisions with trade-offs, six incident postmortems, 20-question follow-up bank.
 - **`docs/DASHBOARD_SETUP.md`** — alternative click-stream guide for assembling a Looker Studio dashboard from the same views (kept as reference; Streamlit is the canonical frontend).
 - **Crypto pipeline monitoring** (`terraform/monitoring_crypto.tf`) — six-widget Cloud Monitoring dashboard plus four targeted alerts (Eventarc backlog > 5k, function 5xx > 5%, producer silent for 10 min, BQML training failures).
 - **Producer test coverage** — twelve unit tests for the Coinbase producer (`tests/test_producer_coinbase.py`); coverage on `producer-coinbase/` rises from 0% to ~70%.

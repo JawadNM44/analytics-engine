@@ -14,7 +14,7 @@ Two production data pipelines on Google Cloud, fully Terraformed: a synthetic-tr
 | **End-to-end latency** | < 2 seconds (exchange → queryable BigQuery row) |
 | **Sustained throughput** | ~5 trades/sec across 3 symbols (BTC, ETH, SOL) |
 | **Trades processed (single 24h window)** | 508,615 trades · ~$432.9M USD volume · 0 errors |
-| **Production incidents handled** | 6 (with postmortems in [`docs/PROJECT_DEFENSE.md`](docs/PROJECT_DEFENSE.md)) |
+| **Production incidents handled** | 6 (postmortems in [`CHANGELOG.md`](CHANGELOG.md)) |
 | **Monthly infra cost** | ~EUR 55 (94% from one always-on Cloud Run worker — see [`docs/COSTS.md`](docs/COSTS.md)) |
 | **Tests** | 37/37 passing, no flaky |
 | **Auth** | Keyless — no JSON service-account keys exist for this project |
@@ -126,7 +126,7 @@ curl https://crypto-api-jiuqt3hfoq-uc.a.run.app/stats
 | CI/CD | **GitHub Actions + Workload Identity Federation** | No JSON keys to leak; short-lived OIDC-derived tokens only |
 | Container build | **Cloud Build via dedicated `sa-function-build`** | Default compute SA on new GCP projects has zero permissions (security hardening) |
 
-Full architectural rationale, alternatives considered, and trade-offs in [`docs/PROJECT_DEFENSE.md`](docs/PROJECT_DEFENSE.md).
+Cost trade-offs in [`docs/COSTS.md`](docs/COSTS.md); incident postmortems in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
@@ -150,11 +150,12 @@ Full architectural rationale, alternatives considered, and trade-offs in [`docs/
 │   ├── iam.tf            # Per-workload SAs, WIF for GitHub, IAM propagation gate
 │   ├── monitoring.tf     # Dashboard + alert policies
 │   └── outputs.tf
-├── tests/                # 25 unit tests across both processors
+├── tests/                # 37 unit tests across producer, both processors, public API
 ├── docs/
-│   └── PROJECT_DEFENSE.md  # Interview-prep script: decisions, postmortems, Q&A
+│   ├── COSTS.md          # Cost engineering writeup
+│   └── DASHBOARD_SETUP.md  # Looker Studio click-stream guide (Streamlit alternative)
 └── .github/workflows/
-    └── deploy.yml        # Test → Plan → Apply → Coinbase Cloud Run deploy
+    └── deploy.yml        # Test → Plan → Apply → Cloud Run deploys
 ```
 
 ---
@@ -303,7 +304,7 @@ WIF gives GitHub Actions a one-time ability to exchange its OIDC token for a sho
 <details>
 <summary>What did I get wrong, and what would I do differently?</summary>
 
-Six honest postmortems live in [`docs/PROJECT_DEFENSE.md`](docs/PROJECT_DEFENSE.md), section 4. The most embarrassing one: I declared a Pub/Sub subscription "for inspection" without a consumer, and it accumulated a 322,000-message backlog within hours before the alert fired. Fix was a one-line resource removal in Terraform; lesson is to never declare a subscription without a planned consumer.
+Six honest postmortems live in [`CHANGELOG.md`](CHANGELOG.md). The most embarrassing one: I declared a Pub/Sub subscription "for inspection" without a consumer, and it accumulated a 322,000-message backlog within hours before the alert fired. Fix was a one-line resource removal in Terraform; lesson is to never declare a subscription without a planned consumer.
 
 Other surprises documented there: GCP IAM is eventually consistent (~60s propagation), service-agent SAs are lazy-created on first API use, and BigQuery `US` (multi-region) is not the same location as `us-central1`.
 
@@ -332,8 +333,6 @@ The Cloud Run worker is the dominant cost because a WebSocket consumer cannot sc
 
 ## Documentation
 
-- [`docs/LEARN_THIS_PROJECT.md`](docs/LEARN_THIS_PROJECT.md) — **full self-study curriculum**: 12 modules with prerequisites, exercises, and self-test questions per module. Use this if you want to learn (and be able to teach) every layer of this stack.
-- [`docs/PROJECT_DEFENSE.md`](docs/PROJECT_DEFENSE.md) — interview script: 8 architectural decisions with trade-offs, six incident postmortems, 20-question follow-up bank.
 - [`docs/COSTS.md`](docs/COSTS.md) — concrete monthly burn breakdown, levers to reduce spend, free-trial vs always-free explainer.
 - [`docs/DASHBOARD_SETUP.md`](docs/DASHBOARD_SETUP.md) — 20-minute Looker Studio dashboard build using the `view_dashboard_*` views.
 - [`SECURITY.md`](SECURITY.md) — threat model (3 adversaries), per-workload service-account scopes, verified absences.

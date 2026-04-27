@@ -48,30 +48,47 @@ def fetch(path: str) -> dict | None:
 
 # ── Header ───────────────────────────────────────────────────────────────────
 st.title("Crypto Analytics — Live")
+st.markdown(
+    """
+    Live cryptocurrency trade analytics for **BTC**, **ETH**, and **SOL**.
+    Every trade on Coinbase is captured within two seconds, stored, and
+    scanned for unusual market behaviour by **two layers of anomaly
+    detection** — a fast statistical baseline plus a forecasting ML model
+    that learns each market's normal rhythm.
+    """
+)
 st.caption(
-    f"Coinbase WebSocket → Pub/Sub → Cloud Function → BigQuery → REST API → this dashboard. "
-    f"End-to-end latency < 2s. Auto-refresh every {CACHE_TTL_SECONDS}s. "
-    f"API: [{API_BASE}]({API_BASE})"
+    f"Source: Coinbase Exchange public WebSocket. "
+    f"Auto-refresh every {CACHE_TTL_SECONDS} seconds. "
+    f"Backend API: [{API_BASE}]({API_BASE})"
 )
 
 health = fetch("/health")
 if health and health.get("status") == "ok":
-    st.success("Pipeline healthy", icon="✅")
+    st.success("Live pipeline is healthy and serving data.", icon="✅")
 else:
-    st.warning("Pipeline degraded — check `/health`", icon="⚠️")
+    st.warning(
+        "Pipeline degraded — backend health check failing. "
+        "Charts may show stale data.",
+        icon="⚠️",
+    )
 
 st.divider()
 
 # ── KPI scorecards ──────────────────────────────────────────────────────────
 stats = fetch("/stats")
 if stats and stats.get("by_symbol"):
-    st.subheader("Last 24 hours")
+    st.subheader("Market overview — last 24 hours")
+    st.caption(
+        "Current price and one-hour percentage change for each tracked "
+        "cryptocurrency. Green = price up over the last hour, red = price down."
+    )
     cols = st.columns(len(stats["by_symbol"]))
     for col, sym in zip(cols, stats["by_symbol"]):
         price_data = fetch(f"/price/{sym['product_id']}")
         delta = None
         if price_data and price_data.get("pct_change_1h") is not None:
-            delta = f"{price_data['pct_change_1h'] * 100:+.3f}% (1h)"
+            delta = f"{price_data['pct_change_1h'] * 100:+.3f}% in last hour"
         col.metric(
             label=sym["product_id"],
             value=f"${price_data['price']:,.2f}" if price_data else "n/a",
@@ -81,8 +98,8 @@ if stats and stats.get("by_symbol"):
     total_trades = sum(s["trades"] for s in stats["by_symbol"])
     total_volume = sum(s["volume_usd"] for s in stats["by_symbol"])
     c1, c2 = st.columns(2)
-    c1.metric("Total trades (24h)", f"{total_trades:,}")
-    c2.metric("Total USD volume (24h)", f"${total_volume:,.0f}")
+    c1.metric("Trades captured (24h)", f"{total_trades:,}")
+    c2.metric("Total USD value traded (24h)", f"${total_volume:,.0f}")
 
 st.divider()
 
@@ -93,15 +110,19 @@ symbols = (
     else ["BTC-USD", "ETH-USD", "SOL-USD"]
 )
 selected = st.selectbox(
-    "Symbol", symbols, index=0,
-    help="Drives the price chart and the ML forecast chart below.",
+    "Choose a cryptocurrency to analyse",
+    symbols,
+    index=0,
+    help="Selecting a symbol updates both the price chart and the ML forecast below.",
 )
 
 # ── 1. CANDLE CHART WITH ANOMALY MARKERS ────────────────────────────────────
-st.subheader(f"{selected} — price + anomaly markers (60 min)")
+st.subheader(f"Price action and detected spikes — {selected} (last 60 minutes)")
 st.caption(
-    "Candlesticks from your own OHLCV view. Red dots mark minutes where "
-    "the rolling z-score (|z| > 3) flagged the minute's volume as anomalous."
+    "Each candle shows one minute of trading: open, high, low, and close price. "
+    "**Red triangles** mark minutes where the trading volume was statistically "
+    "unusual (more than three standard deviations above the recent average), "
+    "which often coincides with whales, news, or sudden interest."
 )
 
 candles = fetch(f"/candles/{selected}?minutes=60")
@@ -172,18 +193,23 @@ if candles and candles.get("candles"):
         legend=dict(orientation="h", y=1.05),
     )
     fig_price.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.05)")
+    fig_price.update_yaxes(title_text="Price (USD)", row=1, col=1)
+    fig_price.update_yaxes(title_text="USD value traded", row=2, col=1)
     st.plotly_chart(fig_price, use_container_width=True)
 else:
-    st.info(f"No candles for {selected} yet.")
+    st.info(f"No price data available for {selected} yet.")
 
 st.divider()
 
 # ── 2. ARIMA_PLUS FORECAST CHART ────────────────────────────────────────────
-st.subheader(f"{selected} — ML volume forecast (ARIMA_PLUS, 6h)")
+st.subheader(f"Forecast vs reality — {selected} (last 6 hours)")
 st.caption(
-    "Per-minute volume vs the model's prediction. Shaded band is the 95% "
-    "confidence interval. Red dots mark minutes flagged as anomalies "
-    "(actual fell outside the band)."
+    "An ML model trained nightly on the last 30 days of trading data predicts "
+    "how much volume each minute *should* have, given the time of day and "
+    "recent trends. The shaded band is the model's **95% confidence range**. "
+    "When the actual blue line falls outside that band, the minute is "
+    "**flagged as an ML anomaly** (red dot) — something the model did not "
+    "expect for this time of day."
 )
 
 fc = fetch(f"/forecast/{selected}?hours=6")
@@ -239,25 +265,25 @@ if fc and fc.get("points"):
     fig_fc.update_layout(
         height=360,
         margin=dict(l=10, r=10, t=10, b=10),
-        yaxis_title="USD volume / min",
+        yaxis_title="USD value traded per minute",
         legend=dict(orientation="h", y=1.05),
     )
     st.plotly_chart(fig_fc, use_container_width=True)
 else:
     st.info(
-        "ML forecast not yet available — model needs ~24h of data and "
-        "this symbol may not have enough history yet."
+        "Forecast not yet available — the model needs about a day of recent "
+        "data to make confident predictions for this symbol."
     )
 
 st.divider()
 
-# ── 3. BUY VS SELL PRESSURE — stacked bars per symbol ──────────────────────
+# ── 3. VOLUME COMPARISON — bars per symbol ──────────────────────────────────
 if stats and stats.get("by_symbol"):
-    st.subheader("Buy vs sell pressure — last 24h")
+    st.subheader("Which cryptocurrency saw the most trading today?")
     st.caption(
-        "Stacked USD volume by side per symbol. Heavy green = buyers in "
-        "control; heavy red = sellers in control. The sign of "
-        "(buy − sell) / total is the standard market-imbalance proxy."
+        "Total US-dollar value traded per cryptocurrency over the last 24 "
+        "hours, summed across every captured trade. Tall bars mean an active "
+        "market; short bars mean fewer or smaller trades."
     )
 
     # /stats already aggregates by symbol but does not split buy/sell volume.
@@ -276,7 +302,7 @@ if stats and stats.get("by_symbol"):
             x=df_s["product_id"],
             y=df_s["volume_usd"],
             marker=dict(color="#5b8def"),
-            name="Total volume (USD)",
+            name="USD value traded (24h)",
             text=df_s["volume_usd"].apply(lambda v: f"${v:,.0f}"),
             textposition="outside",
         )
@@ -284,45 +310,85 @@ if stats and stats.get("by_symbol"):
     fig_p.update_layout(
         height=300,
         margin=dict(l=10, r=10, t=10, b=10),
-        yaxis_title="USD volume (24h)",
+        xaxis_title="Cryptocurrency",
+        yaxis_title="USD value traded (last 24 hours)",
         showlegend=False,
     )
     st.plotly_chart(fig_p, use_container_width=True)
 
 st.divider()
 
-# ── Tables — collapsed by default to keep visuals on top ────────────────────
-with st.expander("Recent anomalies — tabular view"):
+# ── Tables — collapsed, with friendly column names ─────────────────────────
+ANOMALY_LABELS = {
+    "minute": "Time (UTC, per minute)",
+    "product_id": "Symbol",
+    "volume_usd": "USD value traded",
+    "mean_60m": "Average (last 60 min)",
+    "stddev_60m": "Std. deviation (last 60 min)",
+    "z_score": "Z-score (deviation from normal)",
+    "method": "Detection method",
+    "lower_bound": "Forecast lower bound (USD)",
+    "upper_bound": "Forecast upper bound (USD)",
+    "anomaly_probability": "Anomaly probability",
+}
+WHALE_LABELS = {
+    "trade_time": "Time (UTC)",
+    "product_id": "Symbol",
+    "side": "Buy or sell",
+    "size": "Quantity (in coin)",
+    "price": "Price (USD per coin)",
+    "volume_usd": "USD value of this trade",
+    "p99_volume_usd": "99th-percentile threshold today",
+    "x_above_p99": "How many times above threshold",
+}
+
+
+with st.expander("Detailed list of recent unusual minutes"):
+    st.caption(
+        "Two views of the same idea — when a minute's trading volume is "
+        "out of the ordinary. The simple statistical method (left) flags "
+        "spikes against the recent rolling average. The ML method (right) "
+        "flags minutes outside what the trained model expected for this "
+        "time of day."
+    )
     left, right = st.columns(2)
     with left:
-        st.markdown("**z-score (Layer 1)**")
+        st.markdown("**Statistical method — fast spike detection**")
         anomalies = fetch("/anomalies/recent?limit=20")
         if anomalies and anomalies.get("anomalies"):
             df_a = pd.DataFrame(anomalies["anomalies"])
             df_a["minute"] = pd.to_datetime(df_a["minute"])
+            df_a = df_a.rename(columns=ANOMALY_LABELS)
             st.dataframe(df_a, use_container_width=True, hide_index=True, height=260)
         else:
-            st.info("No z-score anomalies in the recent window.")
+            st.info("No statistical anomalies in the recent window.")
     with right:
-        st.markdown("**ML — ARIMA_PLUS (Layer 2)**")
+        st.markdown("**ML method — context-aware detection**")
         ml = fetch("/anomalies/ml?hours=6")
         if ml and ml.get("anomalies"):
             df_ml = pd.DataFrame(ml["anomalies"])
             df_ml["minute"] = pd.to_datetime(df_ml["minute"])
+            df_ml = df_ml.rename(columns=ANOMALY_LABELS)
             st.dataframe(df_ml, use_container_width=True, hide_index=True, height=260)
         else:
-            st.info("No ML anomalies in the last 6 hours.")
+            st.info("No ML anomalies flagged in the last 6 hours.")
 
-with st.expander("Whale trades — top 1% per symbol per day"):
+with st.expander("Largest individual trades (whales) of the day"):
+    st.caption(
+        "Single trades large enough to land in the top 1% of all trades for "
+        "that cryptocurrency today. Useful for spotting whales — high-value "
+        "single orders that move the market."
+    )
     whales = fetch("/whales/recent?limit=30")
     if whales and whales.get("whales"):
         df_w = pd.DataFrame(whales["whales"])
         df_w["trade_time"] = pd.to_datetime(df_w["trade_time"])
+        df_w = df_w.rename(columns=WHALE_LABELS)
         st.dataframe(df_w, use_container_width=True, hide_index=True, height=300)
     else:
-        st.info("No whale trades yet.")
+        st.info("No whale-sized trades yet today.")
 
 st.caption(
-    f"Rendered at {datetime.now(timezone.utc).isoformat(timespec='seconds')} UTC. "
-    f"Source: github.com/JawadNM44/analytics-engine"
+    f"Last refreshed: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC. "
+    f"Source code: github.com/JawadNM44/analytics-engine"
 )
