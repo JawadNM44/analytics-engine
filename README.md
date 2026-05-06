@@ -333,6 +333,7 @@ The Cloud Run worker is the dominant cost because a WebSocket consumer cannot sc
 
 ## Documentation
 
+- [`presentation/PROJECT_PRESENTATION.md`](presentation/PROJECT_PRESENTATION.md) — Marp slide deck walking through every layer, key code lines, all six incidents, and the cost story. Render to PDF/HTML/PPTX via VS Code's Marp extension or `marp-cli`.
 - [`docs/COSTS.md`](docs/COSTS.md) — concrete monthly burn breakdown, levers to reduce spend, free-trial vs always-free explainer.
 - [`docs/DASHBOARD_SETUP.md`](docs/DASHBOARD_SETUP.md) — 20-minute Looker Studio dashboard build using the `view_dashboard_*` views.
 - [`SECURITY.md`](SECURITY.md) — threat model (3 adversaries), per-workload service-account scopes, verified absences.
