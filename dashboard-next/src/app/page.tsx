@@ -3,16 +3,19 @@ import { LiveTape } from "@/components/live-tape";
 import { GlassCard } from "@/components/glass-card";
 import { AnomaliesTable } from "@/components/anomalies-table";
 import { WhalesTable } from "@/components/whales-table";
-import { OrchestrationSection } from "@/components/orchestration-section";
+import { OrbitSection } from "@/components/orbit-section";
 
 export default function HomePage() {
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 sm:py-16">
       {/* Hero */}
       <section className="mb-12 max-w-3xl">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 [html.light_&]:border-black/10 [html.light_&]:bg-white/60 [html.light_&]:text-zinc-600">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse-slow" />
-          Live · 24/7
+        <div className="mb-3 inline-flex items-center gap-2 text-xs font-medium text-emerald-500 [html.dark_&]:text-emerald-400">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          <span className="uppercase tracking-widest">Live · 24/7</span>
         </div>
         <h1 className="font-display text-5xl font-medium leading-tight sm:text-6xl">
           Crypto Analytics, in real time.
@@ -43,8 +46,8 @@ export default function HomePage() {
         <LiveTape />
       </section>
 
-      {/* Model orchestration — six-stage pipeline visual */}
-      <OrchestrationSection />
+      {/* Asset orchestration — central logo + crypto orbits */}
+      <OrbitSection />
 
       {/* Pipeline pitch */}
       <section className="mb-12 grid gap-4 sm:grid-cols-3">

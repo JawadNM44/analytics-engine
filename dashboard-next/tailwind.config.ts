@@ -19,14 +19,24 @@ const config: Config = {
         bad: "#ef4444",
       },
       backgroundImage: {
-        "hero-grad": "radial-gradient(ellipse at top, rgba(32,164,216,0.15), transparent 60%), radial-gradient(ellipse at bottom right, rgba(168,85,247,0.08), transparent 50%)",
+        "hero-grad":
+          "radial-gradient(ellipse at top, rgba(32,164,216,0.15), transparent 60%), radial-gradient(ellipse at bottom right, rgba(168,85,247,0.08), transparent 50%)",
       },
       animation: {
         "fade-in": "fadeIn 0.4s ease-out",
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "spin-slow": "spin 24s linear infinite",
+        "spin-slow-cancel": "spin 24s linear infinite reverse",
+        "orbit-cw": "spin 60s linear infinite",
+        "orbit-cw-cancel": "spin 60s linear infinite reverse",
+        "orbit-ccw": "spin 45s linear infinite reverse",
+        "orbit-ccw-cancel": "spin 45s linear infinite",
       },
       keyframes: {
-        fadeIn: { "0%": { opacity: "0", transform: "translateY(4px)" }, "100%": { opacity: "1", transform: "translateY(0)" } },
+        fadeIn: {
+          "0%": { opacity: "0", transform: "translateY(4px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
     },
   },

@@ -44,15 +44,27 @@ export function LiveTape() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between text-xs text-white/55 [html.light_&]:text-zinc-500">
-        <span className="uppercase tracking-widest">Live · last 24h</span>
-        <span className={cn("flex items-center gap-2", connected ? "text-emerald-400" : "text-amber-400")}>
-          <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              connected ? "bg-emerald-400 animate-pulse-slow" : "bg-amber-400",
+      <div className="flex items-center justify-between text-xs">
+        <span className="uppercase tracking-widest text-white/55 [html.light_&]:text-zinc-500">
+          Live · last 24h
+        </span>
+        <span
+          className={cn(
+            "inline-flex items-center gap-2 font-medium",
+            connected ? "text-emerald-500 [html.dark_&]:text-emerald-400" : "text-amber-500 [html.dark_&]:text-amber-400",
+          )}
+        >
+          <span className="relative flex h-2 w-2">
+            {connected && (
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
             )}
-          />
+            <span
+              className={cn(
+                "relative inline-flex h-2 w-2 rounded-full",
+                connected ? "bg-emerald-400" : "bg-amber-400",
+              )}
+            />
+          </span>
           {connected ? "Streaming" : "Reconnecting"}
         </span>
       </div>
