@@ -18,7 +18,7 @@ export function SymbolPicker({ value, onChange, options }: Props) {
             "rounded-full px-4 py-1.5 text-sm font-medium transition",
             value === opt
               ? "bg-white text-black shadow"
-              : "text-white/60 hover:text-white",
+              : "text-white/60 hover:text-white [html.light_&]:text-zinc-600 [html.light_&]:hover:text-zinc-900",
           )}
           type="button"
         >

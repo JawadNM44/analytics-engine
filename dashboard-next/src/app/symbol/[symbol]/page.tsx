@@ -39,9 +39,9 @@ export default function SymbolPage({ params }: { params: Promise<{ symbol: strin
   if (!SYMBOLS.includes(decoded)) {
     return (
       <main className="mx-auto max-w-7xl px-6 py-16">
-        <Link href="/" className="text-sm text-white/60 hover:text-white">← Back</Link>
-        <h1 className="mt-6 font-display text-4xl text-white">Unknown symbol</h1>
-        <p className="mt-2 text-white/60">Try {SYMBOLS.join(", ")}.</p>
+        <Link href="/" className="text-sm text-white/60 hover:text-white [html.light_&]:text-zinc-900">← Back</Link>
+        <h1 className="mt-6 font-display text-4xl text-white [html.light_&]:text-zinc-900">Unknown symbol</h1>
+        <p className="mt-2 text-white/60 [html.light_&]:text-zinc-600">Try {SYMBOLS.join(", ")}.</p>
       </main>
     );
   }
@@ -54,7 +54,7 @@ export default function SymbolPage({ params }: { params: Promise<{ symbol: strin
   return (
     <main className="mx-auto max-w-7xl px-6 py-12">
       <div className="mb-6 flex items-center justify-between">
-        <Link href="/" className="text-sm text-white/60 hover:text-white">← Back</Link>
+        <Link href="/" className="text-sm text-white/60 hover:text-white [html.light_&]:text-zinc-900">← Back</Link>
         <SymbolPicker
           value={decoded}
           options={SYMBOLS}
@@ -63,8 +63,8 @@ export default function SymbolPage({ params }: { params: Promise<{ symbol: strin
       </div>
 
       <div className="mb-8 flex items-baseline gap-4">
-        <h1 className="font-display text-5xl text-white">{decoded}</h1>
-        <span className="text-sm uppercase tracking-widest text-white/40">live</span>
+        <h1 className="font-display text-5xl text-white [html.light_&]:text-zinc-900">{decoded}</h1>
+        <span className="text-sm uppercase tracking-widest text-white/40 [html.light_&]:text-zinc-500">live</span>
       </div>
 
       <section className="mb-8 grid gap-4 sm:grid-cols-3">
@@ -85,7 +85,7 @@ export default function SymbolPage({ params }: { params: Promise<{ symbol: strin
         <ForecastChart symbol={decoded} />
       </section>
 
-      <footer className="mt-12 text-xs text-white/40">
+      <footer className="mt-12 text-xs text-white/40 [html.light_&]:text-zinc-500">
         Forecast chart auto-refreshes every 30s. Price ticks every 5s.
       </footer>
     </main>

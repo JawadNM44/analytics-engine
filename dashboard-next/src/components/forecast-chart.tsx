@@ -63,12 +63,12 @@ export function ForecastChart({ symbol }: Props) {
   }, [symbol]);
 
   if (loading) {
-    return <GlassCard><div className="text-white/50">Loading forecast…</div></GlassCard>;
+    return <GlassCard><div className="text-white/50 [html.light_&]:text-zinc-500">Loading forecast…</div></GlassCard>;
   }
   if (error || points.length === 0) {
     return (
       <GlassCard>
-        <div className="text-white/70">
+        <div className="text-white/70 [html.light_&]:text-zinc-700">
           Forecast not yet available — the model needs ~24h of recent data and
           the producer needs to be running. Restart the producer and check back.
         </div>
@@ -93,11 +93,11 @@ export function ForecastChart({ symbol }: Props) {
   return (
     <GlassCard className="animate-fade-in">
       <div className="mb-4 flex flex-col gap-1">
-        <div className="text-xs uppercase tracking-widest text-white/50">ML model</div>
-        <h3 className="font-display text-2xl text-white">
+        <div className="text-xs uppercase tracking-widest text-white/55 [html.light_&]:text-zinc-500">ML model</div>
+        <h3 className="font-display text-2xl text-white [html.light_&]:text-zinc-900">
           What the model predicted vs what really happened — {symbol}
         </h3>
-        <p className="max-w-3xl text-sm text-white/60">
+        <p className="max-w-3xl text-sm text-white/60 [html.light_&]:text-zinc-600">
           The orange dashed line is what the ML model expected. The blue solid
           line is what actually traded. The shaded band is the model's 95%
           confidence range. Red dots are minutes where reality fell outside
@@ -160,16 +160,16 @@ export function ForecastChart({ symbol }: Props) {
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-          <div className="text-xs uppercase tracking-widest text-white/40">Median forecast error</div>
-          <div className="font-display text-xl text-white">{medianErr == null ? "—" : fmt.pct(medianErr)}</div>
+          <div className="text-xs uppercase tracking-widest text-white/45 [html.light_&]:text-zinc-500">Median forecast error</div>
+          <div className="font-display text-xl text-white [html.light_&]:text-zinc-900">{medianErr == null ? "—" : fmt.pct(medianErr)}</div>
         </div>
         <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-          <div className="text-xs uppercase tracking-widest text-white/40">Minutes inside band</div>
-          <div className="font-display text-xl text-white">{inBand == null ? "—" : fmt.pct(inBand)}</div>
+          <div className="text-xs uppercase tracking-widest text-white/45 [html.light_&]:text-zinc-500">Minutes inside band</div>
+          <div className="font-display text-xl text-white [html.light_&]:text-zinc-900">{inBand == null ? "—" : fmt.pct(inBand)}</div>
         </div>
         <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-          <div className="text-xs uppercase tracking-widest text-white/40">Anomalies flagged</div>
-          <div className="font-display text-xl text-white">{anomalies.length}</div>
+          <div className="text-xs uppercase tracking-widest text-white/45 [html.light_&]:text-zinc-500">Anomalies flagged</div>
+          <div className="font-display text-xl text-white [html.light_&]:text-zinc-900">{anomalies.length}</div>
         </div>
       </div>
     </GlassCard>
