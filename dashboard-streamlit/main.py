@@ -202,14 +202,14 @@ else:
 st.divider()
 
 # ── 2. ARIMA_PLUS FORECAST CHART ────────────────────────────────────────────
-st.subheader(f"Forecast vs reality — {selected} (last 6 hours)")
+st.subheader(f"What the ML model predicted vs what really happened — {selected}")
 st.caption(
-    "An ML model trained nightly on the last 30 days of trading data predicts "
-    "how much volume each minute *should* have, given the time of day and "
-    "recent trends. The shaded band is the model's **95% confidence range**. "
-    "When the actual blue line falls outside that band, the minute is "
-    "**flagged as an ML anomaly** (red dot) — something the model did not "
-    "expect for this time of day."
+    "Two lines on this chart tell the whole story. The **orange dashed line** "
+    "is what the ML model **expected** the volume to be each minute, based on "
+    "its training. The **blue solid line** is what actually traded. The shaded "
+    "band around the orange line is the model's 95% confidence range — if the "
+    "blue line stays inside the band the model got it right; if blue exits "
+    "the band, that minute is flagged as an **ML anomaly** (red dot)."
 )
 
 fc = fetch(f"/forecast/{selected}?hours=6")
@@ -219,10 +219,15 @@ if fc and fc.get("points"):
     df_f = df_f.sort_values("minute")
     # Some bounds can come back negative (ARIMA in cold-start) — clip at 0
     df_f["lower_bound"] = df_f["lower_bound"].clip(lower=0)
+    # The ML.DETECT_ANOMALIES output gives us bounds but not the central
+    # forecast directly. The model's mean prediction sits at the centre of
+    # the symmetric confidence interval, so the midpoint is a faithful
+    # reconstruction of the forecast line.
+    df_f["forecast"] = (df_f["lower_bound"] + df_f["upper_bound"]) / 2
 
     fig_fc = go.Figure()
 
-    # Confidence band: upper trace, then lower trace with fill
+    # Confidence band: invisible upper trace, then lower trace with fill
     fig_fc.add_trace(
         go.Scatter(
             x=df_f["minute"], y=df_f["upper_bound"],
@@ -234,41 +239,72 @@ if fc and fc.get("points"):
         go.Scatter(
             x=df_f["minute"], y=df_f["lower_bound"],
             line=dict(color="rgba(0,0,0,0)"),
-            fill="tonexty", fillcolor="rgba(91,141,239,0.18)",
-            name="95% confidence interval",
+            fill="tonexty", fillcolor="rgba(255,154,0,0.15)",
+            name="Model's 95% confidence range",
             hoverinfo="skip",
         )
     )
-    # Actual volume line
+    # FORECAST line — what the ML model predicted (orange dashed)
+    fig_fc.add_trace(
+        go.Scatter(
+            x=df_f["minute"], y=df_f["forecast"],
+            mode="lines",
+            line=dict(color="#ff9a00", width=2, dash="dash"),
+            name="Forecast (what the model expected)",
+            hovertemplate="%{x}<br>forecast: $%{y:,.0f}<extra></extra>",
+        )
+    )
+    # ACTUAL line — what really happened (blue solid)
     fig_fc.add_trace(
         go.Scatter(
             x=df_f["minute"], y=df_f["volume_usd"],
-            mode="lines", line=dict(color="#5b8def", width=2),
-            name="Actual volume (USD/min)",
+            mode="lines",
+            line=dict(color="#1a73e8", width=3),
+            name="Actual (what really happened)",
             hovertemplate="%{x}<br>actual: $%{y:,.0f}<extra></extra>",
         )
     )
-    # Anomaly dots
+    # Anomaly dots — minutes the model got wrong by a lot
     df_an = df_f[df_f["is_anomaly"] == True]  # noqa: E712
     if not df_an.empty:
         fig_fc.add_trace(
             go.Scatter(
                 x=df_an["minute"], y=df_an["volume_usd"],
                 mode="markers",
-                marker=dict(color="red", size=10, symbol="circle"),
+                marker=dict(color="red", size=12, symbol="circle",
+                            line=dict(color="darkred", width=2)),
                 name=f"ML anomaly ({len(df_an)})",
-                hovertemplate="<b>Anomaly</b><br>%{x}<br>actual: $%{y:,.0f}<br>prob: %{customdata:.2%}<extra></extra>",
-                customdata=df_an["anomaly_probability"],
+                hovertemplate="<b>Anomaly</b><br>%{x}<br>actual: $%{y:,.0f}<br>"
+                              "forecast: $%{customdata[0]:,.0f}<br>"
+                              "deviation: %{customdata[1]:.0%}<extra></extra>",
+                customdata=list(zip(
+                    df_an["forecast"],
+                    (df_an["volume_usd"] - df_an["forecast"]) / df_an["forecast"].replace(0, 1),
+                )),
             )
         )
 
     fig_fc.update_layout(
-        height=360,
-        margin=dict(l=10, r=10, t=10, b=10),
+        height=420,
+        margin=dict(l=10, r=10, t=30, b=10),
         yaxis_title="USD value traded per minute",
-        legend=dict(orientation="h", y=1.05),
+        legend=dict(orientation="h", y=1.08),
+        hovermode="x unified",
     )
     st.plotly_chart(fig_fc, use_container_width=True)
+
+    # Live "how well is the model doing" KPIs under the chart
+    df_f["abs_error"] = (df_f["volume_usd"] - df_f["forecast"]).abs()
+    mape = (df_f["abs_error"] / df_f["forecast"].replace(0, 1)).median()
+    in_band = ((df_f["volume_usd"] >= df_f["lower_bound"]) &
+               (df_f["volume_usd"] <= df_f["upper_bound"])).mean()
+    a, b, c = st.columns(3)
+    a.metric("Forecast accuracy (median error)", f"{mape * 100:.1f}%",
+             help="Lower is better — how far off the prediction was on a typical minute.")
+    b.metric("Minutes inside confidence band", f"{in_band * 100:.0f}%",
+             help="Higher is better — how often reality fell within the model's range.")
+    c.metric("Anomalies flagged in this window", f"{len(df_an)}",
+             help="Minutes where reality fell outside the model's 95% range.")
 else:
     st.info(
         "Forecast not yet available — the model needs about a day of recent "
@@ -319,28 +355,48 @@ if stats and stats.get("by_symbol"):
 st.divider()
 
 # ── Tables — collapsed, with friendly column names ─────────────────────────
-ANOMALY_LABELS = {
+COLUMN_LABELS = {
+    # Time
     "minute": "Time (UTC, per minute)",
+    "trade_time": "Time (UTC)",
+    "latest_trade": "Latest trade (UTC)",
+    "ingested_at": "Ingested at (UTC)",
+    "processed_at": "Processed at (UTC)",
+    # Identity
     "product_id": "Symbol",
+    "trade_id": "Trade ID",
+    "side": "Buy or sell",
+    # Volumes / prices
     "volume_usd": "USD value traded",
-    "mean_60m": "Average (last 60 min)",
-    "stddev_60m": "Std. deviation (last 60 min)",
+    "size": "Quantity (in coin)",
+    "price": "Price (USD per coin)",
+    "p99_volume_usd": "99th-percentile threshold today",
+    "x_above_p99": "How many times above threshold",
+    # Statistical
+    "mean_60m": "60-min average",
+    "stddev_60m": "60-min std. deviation",
     "z_score": "Z-score (deviation from normal)",
     "method": "Detection method",
+    "is_anomaly": "Flagged as anomaly",
+    # ML forecast
     "lower_bound": "Forecast lower bound (USD)",
     "upper_bound": "Forecast upper bound (USD)",
     "anomaly_probability": "Anomaly probability",
 }
-WHALE_LABELS = {
-    "trade_time": "Time (UTC)",
-    "product_id": "Symbol",
-    "side": "Buy or sell",
-    "size": "Quantity (in coin)",
-    "price": "Price (USD per coin)",
-    "volume_usd": "USD value of this trade",
-    "p99_volume_usd": "99th-percentile threshold today",
-    "x_above_p99": "How many times above threshold",
-}
+
+
+def humanize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename DataFrame columns to human-readable labels.
+
+    Known columns get their explicit mapping. Any unknown column is
+    auto-converted from snake_case to Title Case so a forgotten field
+    never shows up as raw 'product_id'-style noise.
+    """
+    rename_map = {
+        col: COLUMN_LABELS.get(col, col.replace("_", " ").title())
+        for col in df.columns
+    }
+    return df.rename(columns=rename_map)
 
 
 with st.expander("Detailed list of recent unusual minutes"):
@@ -358,7 +414,7 @@ with st.expander("Detailed list of recent unusual minutes"):
         if anomalies and anomalies.get("anomalies"):
             df_a = pd.DataFrame(anomalies["anomalies"])
             df_a["minute"] = pd.to_datetime(df_a["minute"])
-            df_a = df_a.rename(columns=ANOMALY_LABELS)
+            df_a = humanize_columns(df_a)
             st.dataframe(df_a, use_container_width=True, hide_index=True, height=260)
         else:
             st.info("No statistical anomalies in the recent window.")
@@ -368,7 +424,7 @@ with st.expander("Detailed list of recent unusual minutes"):
         if ml and ml.get("anomalies"):
             df_ml = pd.DataFrame(ml["anomalies"])
             df_ml["minute"] = pd.to_datetime(df_ml["minute"])
-            df_ml = df_ml.rename(columns=ANOMALY_LABELS)
+            df_ml = humanize_columns(df_ml)
             st.dataframe(df_ml, use_container_width=True, hide_index=True, height=260)
         else:
             st.info("No ML anomalies flagged in the last 6 hours.")
@@ -383,7 +439,10 @@ with st.expander("Largest individual trades (whales) of the day"):
     if whales and whales.get("whales"):
         df_w = pd.DataFrame(whales["whales"])
         df_w["trade_time"] = pd.to_datetime(df_w["trade_time"])
-        df_w = df_w.rename(columns=WHALE_LABELS)
+        # Capitalise buy/sell for readability
+        if "side" in df_w.columns:
+            df_w["side"] = df_w["side"].str.title()
+        df_w = humanize_columns(df_w)
         st.dataframe(df_w, use_container_width=True, hide_index=True, height=300)
     else:
         st.info("No whale-sized trades yet today.")
