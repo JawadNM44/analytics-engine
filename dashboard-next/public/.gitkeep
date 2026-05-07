@@ -1,0 +1,2 @@
+This folder hosts public static assets (favicon, OG images) served at /.
+The .gitkeep ensures git tracks the empty folder so the Docker COPY succeeds.
