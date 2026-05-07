@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { TopBar } from "@/components/top-bar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,8 +32,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${instrumentSerif.variable}`}>
-      <body className="font-sans">{children}</body>
+    <html
+      lang="en"
+      className={`${inter.variable} ${instrumentSerif.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="font-sans">
+        <ThemeProvider>
+          <TopBar />
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

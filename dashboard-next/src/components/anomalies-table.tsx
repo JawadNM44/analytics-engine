@@ -33,21 +33,21 @@ export function AnomaliesTable() {
   }, []);
 
   return (
-    <GlassCard className="animate-fade-in">
+    <GlassCard>
       <div className="mb-3">
-        <div className="text-xs uppercase tracking-widest text-white/50">Statistical detection · live</div>
-        <h3 className="font-display text-xl text-white">Recent unusual minutes</h3>
-        <p className="text-xs text-white/50">
+        <div className="text-xs uppercase tracking-widest text-white/55 [html.light_&]:text-zinc-500">Statistical detection · live</div>
+        <h3 className="font-display text-xl">Recent unusual minutes</h3>
+        <p className="text-xs text-white/55 [html.light_&]:text-zinc-600">
           Minutes where USD volume spiked beyond ±3 standard deviations of the rolling 60-min average.
         </p>
       </div>
       {error && <div className="text-amber-300">Couldn't load anomalies: {error}</div>}
-      {!rows && !error && <div className="text-white/50">Loading…</div>}
-      {rows && rows.length === 0 && <div className="text-white/50">No anomalies in the recent window.</div>}
+      {!rows && !error && <div className="text-white/50 [html.light_&]:text-zinc-500">Loading…</div>}
+      {rows && rows.length === 0 && <div className="text-white/50 [html.light_&]:text-zinc-500">No anomalies in the recent window.</div>}
       {rows && rows.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wider text-white/40">
+            <thead className="text-left text-xs uppercase tracking-wider text-white/45 [html.light_&]:text-zinc-500">
               <tr>
                 <th className="py-2 pr-4">Time (UTC)</th>
                 <th className="py-2 pr-4">Symbol</th>
@@ -55,15 +55,16 @@ export function AnomaliesTable() {
                 <th className="py-2 pr-4">Z-score</th>
               </tr>
             </thead>
-            <tbody className="text-white/80">
+            <tbody>
               {rows.map((a, i) => (
-                <tr key={`${a.minute}-${a.product_id}-${i}`} className="border-t border-white/5">
-                  <td className="py-2 pr-4 font-mono text-xs">
+                <tr key={`${a.minute}-${a.product_id}-${i}`}
+                    className="border-t border-white/5 [html.light_&]:border-black/5">
+                  <td className="py-2 pr-4 font-mono text-xs text-white/75 [html.light_&]:text-zinc-700">
                     {new Date(a.minute).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                   </td>
-                  <td className="py-2 pr-4">{a.product_id}</td>
-                  <td className="py-2 pr-4">{fmt.usd(a.volume_usd)}</td>
-                  <td className="py-2 pr-4 font-mono">
+                  <td className="py-2 pr-4 font-medium">{a.product_id}</td>
+                  <td className="py-2 pr-4 tabular-nums">{fmt.usd(a.volume_usd)}</td>
+                  <td className="py-2 pr-4 font-mono tabular-nums">
                     {a.z_score == null ? "—" : a.z_score.toFixed(2)}
                   </td>
                 </tr>

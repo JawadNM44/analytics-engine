@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { GlassCard } from "./glass-card";
+import { AnimatedNumber } from "./animated-number";
 import { fmt } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { motion } from "framer-motion";
 
 interface SymbolStat {
   product_id: string;
@@ -42,9 +44,9 @@ export function LiveTape() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between text-xs text-white/50">
+      <div className="flex items-center justify-between text-xs text-white/55 [html.light_&]:text-zinc-500">
         <span className="uppercase tracking-widest">Live · last 24h</span>
-        <span className={cn("flex items-center gap-2", connected ? "text-emerald-300" : "text-amber-300")}>
+        <span className={cn("flex items-center gap-2", connected ? "text-emerald-400" : "text-amber-400")}>
           <span
             className={cn(
               "h-1.5 w-1.5 rounded-full",
@@ -58,45 +60,55 @@ export function LiveTape() {
         {(stats ?? Array.from({ length: 3 })).map((s, i) => {
           const sym = s as SymbolStat | undefined;
           return (
-            <GlassCard key={sym?.product_id ?? i} className="animate-fade-in">
-              <div className="flex items-center justify-between">
-                <div className="font-display text-2xl text-white">
-                  {sym?.product_id ?? "—"}
+            <motion.div
+              key={sym?.product_id ?? i}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.06, duration: 0.4, ease: "easeOut" }}
+            >
+              <GlassCard shimmer>
+                <div className="flex items-center justify-between">
+                  <div className="font-display text-2xl">
+                    {sym?.product_id ?? "—"}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-widest text-white/40 [html.light_&]:text-zinc-500">
+                    24h
+                  </div>
                 </div>
-                <div
-                  className={cn(
-                    "text-[10px] uppercase tracking-widest",
-                    "text-white/40",
-                  )}
-                >
-                  24h
+                <div className="mt-4 flex flex-col gap-1">
+                  <div className="text-xs text-white/55 [html.light_&]:text-zinc-500">USD value traded</div>
+                  <div className="font-display text-3xl font-medium tabular-nums">
+                    <AnimatedNumber value={sym?.volume_usd} format={fmt.usdCompact} threshold={100} />
+                  </div>
+                  <div className="text-xs text-white/45 [html.light_&]:text-zinc-500">
+                    <AnimatedNumber value={sym?.trades} format={fmt.num} threshold={0} /> trades · last at {fmt.time(sym?.latest_trade)}
+                  </div>
                 </div>
-              </div>
-              <div className="mt-4 flex flex-col gap-1">
-                <div className="text-xs text-white/50">USD value traded</div>
-                <div className="font-display text-3xl font-medium text-white">
-                  {fmt.usdCompact(sym?.volume_usd)}
-                </div>
-                <div className="text-xs text-white/40">
-                  {fmt.num(sym?.trades)} trades · last at {fmt.time(sym?.latest_trade)}
-                </div>
-              </div>
-            </GlassCard>
+              </GlassCard>
+            </motion.div>
           );
         })}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <GlassCard>
-          <div className="text-xs uppercase tracking-widest text-white/50">Trades captured · 24h</div>
-          <div className="mt-2 font-display text-4xl font-medium text-white">{fmt.num(totalTrades)}</div>
+        <GlassCard shimmer>
+          <div className="text-xs uppercase tracking-widest text-white/55 [html.light_&]:text-zinc-500">
+            Trades captured · 24h
+          </div>
+          <div className="mt-2 font-display text-4xl font-medium tabular-nums">
+            <AnimatedNumber value={totalTrades} format={fmt.num} threshold={0} />
+          </div>
         </GlassCard>
-        <GlassCard>
-          <div className="text-xs uppercase tracking-widest text-white/50">Total USD value · 24h</div>
-          <div className="mt-2 font-display text-4xl font-medium text-white">{fmt.usdCompact(totalVol)}</div>
+        <GlassCard shimmer>
+          <div className="text-xs uppercase tracking-widest text-white/55 [html.light_&]:text-zinc-500">
+            Total USD value · 24h
+          </div>
+          <div className="mt-2 font-display text-4xl font-medium tabular-nums">
+            <AnimatedNumber value={totalVol} format={fmt.usdCompact} threshold={1000} />
+          </div>
         </GlassCard>
       </div>
       {tickAt > 0 && (
-        <div className="text-right text-[11px] text-white/30">
+        <div className="text-right text-[11px] text-white/35 [html.light_&]:text-zinc-500">
           Last update {fmt.time(new Date(tickAt).toISOString())}
         </div>
       )}
