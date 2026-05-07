@@ -4,7 +4,10 @@ const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: "standalone",
-  experimental: { typedRoutes: true },
+  // typedRoutes is experimental and rejects dynamic href: string. Disabled
+  // because we build navigation links from runtime data (top-bar nav array
+  // and useRouter().push(s) in symbol-picker).
+  experimental: { typedRoutes: false },
   async headers() {
     return [
       {
