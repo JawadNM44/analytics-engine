@@ -31,9 +31,9 @@ resource "google_cloud_run_service_iam_member" "dashboard_invokes_api" {
   member   = "serviceAccount:${google_service_account.dashboard_next_sa.email}"
 
   # crypto-api is created by the GitHub Actions deploy step, not by Terraform.
-  # We don't put a depends_on here because Terraform doesn't manage the
-  # service resource; the IAM binding is created on the first Apply *after*
-  # the API has been deployed once.
+  # We depend on the run.admin propagation gate so a fresh-project Apply
+  # doesn't 403 before the CI SA has the right to set Cloud Run IAM.
+  depends_on = [time_sleep.wait_for_cicd_run_admin_propagation]
 }
 
 output "dashboard_next_sa_email" {
