@@ -217,6 +217,20 @@ if fc and fc.get("points"):
     df_f = pd.DataFrame(fc["points"])
     df_f["minute"] = pd.to_datetime(df_f["minute"])
     df_f = df_f.sort_values("minute")
+    # ML.DETECT_ANOMALIES returns null bounds on minutes the model can't
+    # forecast (cold start, missing seasonal context). Coerce to NaN so
+    # numeric ops don't blow up, then drop those rows for math; Plotly
+    # itself handles NaN gracefully so the chart traces still work.
+    for col in ("volume_usd", "lower_bound", "upper_bound"):
+        df_f[col] = pd.to_numeric(df_f[col], errors="coerce")
+    df_f = df_f.dropna(subset=["lower_bound", "upper_bound"])
+    if df_f.empty:
+        st.info(
+            "The ML model has no confident forecasts in the selected window "
+            "yet — usually a sign the producer was paused recently. Restart "
+            "the producer and wait ~24h for the next nightly retrain."
+        )
+        st.stop()
     # Some bounds can come back negative (ARIMA in cold-start) — clip at 0
     df_f["lower_bound"] = df_f["lower_bound"].clip(lower=0)
     # The ML.DETECT_ANOMALIES output gives us bounds but not the central
