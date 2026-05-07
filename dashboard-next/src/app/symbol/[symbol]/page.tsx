@@ -6,6 +6,7 @@ import { KPI } from "@/components/kpi";
 import { fmt } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Footer } from "@/components/footer";
 
 const SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD"];
 
@@ -85,9 +86,11 @@ export default function SymbolPage({ params }: { params: Promise<{ symbol: strin
         <ForecastChart symbol={decoded} />
       </section>
 
-      <footer className="mt-12 text-xs text-white/40 [html.light_&]:text-zinc-500">
+      <p className="mt-12 text-xs text-white/40 [html.light_&]:text-zinc-500">
         Forecast chart auto-refreshes every 30s. Price ticks every 5s.
-      </footer>
+      </p>
+
+      <Footer />
     </main>
   );
 }

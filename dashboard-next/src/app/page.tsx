@@ -4,6 +4,7 @@ import { GlassCard } from "@/components/glass-card";
 import { AnomaliesTable } from "@/components/anomalies-table";
 import { WhalesTable } from "@/components/whales-table";
 import { OrbitSection } from "@/components/orbit-section";
+import { Footer } from "@/components/footer";
 
 export default function HomePage() {
   return (
@@ -80,15 +81,7 @@ export default function HomePage() {
         <WhalesTable />
       </section>
 
-      <footer className="mt-16 border-t border-white/5 pt-6 text-xs text-white/45 [html.light_&]:border-black/10 [html.light_&]:text-zinc-500">
-        <p>Built on Google Cloud · Terraformed · Workload Identity Federation · 0 long-lived credentials.</p>
-        <p className="mt-1">
-          Source:{" "}
-          <a className="underline-offset-2 hover:underline" href="https://github.com/JawadNM44/analytics-engine">
-            github.com/JawadNM44/analytics-engine
-          </a>
-        </p>
-      </footer>
+      <Footer />
     </main>
   );
 }

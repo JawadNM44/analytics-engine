@@ -18,14 +18,27 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Crypto Analytics — Live",
+  title: {
+    default: "Crypto Analytics — Live · by Jawad NM",
+    template: "%s · Crypto Analytics by Jawad NM",
+  },
   description:
-    "Live cryptocurrency trade analytics with statistical and ML-based anomaly detection. Coinbase WebSocket → Pub/Sub → BigQuery → ML.",
+    "Live cryptocurrency trade analytics with statistical and ML-based anomaly detection. Coinbase WebSocket → Pub/Sub → BigQuery → ML. Built by Jawad NM.",
+  authors: [{ name: "Jawad NM", url: "https://github.com/JawadNM44" }],
+  creator: "Jawad NM",
+  publisher: "Jawad NM",
   robots: { index: true, follow: true },
   metadataBase: new URL("https://crypto-dashboard-jiuqt3hfoq-uc.a.run.app"),
   openGraph: {
     type: "website",
-    title: "Crypto Analytics — Live",
+    title: "Crypto Analytics — Live · by Jawad NM",
+    description:
+      "Live BTC/ETH/SOL trade analytics + ML anomaly forecasting. A personal portfolio project by Jawad NM.",
+    siteName: "Crypto Analytics by Jawad NM",
+  },
+  twitter: {
+    card: "summary",
+    title: "Crypto Analytics — Live · by Jawad NM",
     description: "Live BTC/ETH/SOL trade analytics + ML anomaly forecasting.",
   },
 };
