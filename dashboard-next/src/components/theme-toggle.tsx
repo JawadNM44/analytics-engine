@@ -2,7 +2,6 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/cn";
 
 export function ThemeToggle() {
@@ -11,7 +10,6 @@ export function ThemeToggle() {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    // Render an invisible placeholder of the same size to avoid layout shift.
     return <div className="h-9 w-16 rounded-full" aria-hidden />;
   }
 
@@ -25,19 +23,18 @@ export function ThemeToggle() {
       className={cn(
         "relative inline-flex h-9 w-16 items-center rounded-full",
         "border border-white/10 bg-white/5 backdrop-blur-xl",
-        "dark:border-white/10 dark:bg-white/5",
+        "[html.light_&]:border-black/10 [html.light_&]:bg-white/60",
         "transition-colors duration-300",
-        "hover:border-white/20",
+        "hover:border-white/20 [html.light_&]:hover:border-black/20",
       )}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      <span
         className={cn(
           "absolute h-7 w-7 rounded-full",
           "bg-gradient-to-br from-white to-white/70 shadow-md",
-          "dark:from-zinc-900 dark:to-zinc-700",
-          isDark ? "right-1" : "left-1",
+          "[html.dark_&]:from-zinc-700 [html.dark_&]:to-zinc-900",
+          "transition-all duration-300 ease-out",
+          isDark ? "left-[calc(100%-2rem)]" : "left-1",
         )}
       />
       <Sun
