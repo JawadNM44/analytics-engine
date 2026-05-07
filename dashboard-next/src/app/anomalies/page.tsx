@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AnomaliesTable } from "@/components/anomalies-table";
 import { WhalesTable } from "@/components/whales-table";
+import { Footer } from "@/components/footer";
 
 export default function AnomaliesPage() {
   return (
@@ -16,6 +17,8 @@ export default function AnomaliesPage() {
         <AnomaliesTable />
         <WhalesTable />
       </div>
+
+      <Footer />
     </main>
   );
 }
