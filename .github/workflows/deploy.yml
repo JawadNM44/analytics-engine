@@ -230,17 +230,19 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      # Public read-only API. Safety net is three-layered:
+      # PRIVATE read-only API (--no-allow-unauthenticated).
+      # Only sa-dashboard-next can invoke this service. Defense layers:
+      #   - Cloud Run IAM (no public access)
       #   - --max-instances 5 caps concurrent compute
       #   - MAX_BYTES_BILLED env caps each BQ scan to 100 MB
       #   - sa-public-api has only dataViewer on transactions_ds + jobUser
-      - name: Deploy crypto-api to Cloud Run
+      - name: Deploy crypto-api to Cloud Run (private)
         run: |
           gcloud run deploy crypto-api \
             --source ./api-public \
             --region us-central1 \
             --platform managed \
-            --allow-unauthenticated \
+            --no-allow-unauthenticated \
             --min-instances 0 \
             --max-instances 5 \
             --memory 256Mi \
@@ -252,9 +254,20 @@ jobs:
             --set-env-vars "^|^GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|BQ_DATASET=transactions_ds|ALLOWED_SYMBOLS=BTC-USD,ETH-USD,SOL-USD|MAX_BYTES_BILLED=104857600" \
             --quiet
 
-  # ── 6. Deploy Streamlit Dashboard (frontend) ────────────────────────────────
+      # Strip any allUsers binding that may still be on the service from
+      # the previous public configuration. Idempotent — succeeds even if
+      # the binding does not exist.
+      - name: Remove any leftover allUsers binding
+        run: |
+          gcloud run services remove-iam-policy-binding crypto-api \
+            --region us-central1 \
+            --member=allUsers \
+            --role=roles/run.invoker \
+            --quiet || true
+
+  # ── 6. Deploy Next.js Dashboard (replaces the old Streamlit one) ──────────
   deploy-dashboard:
-    name: Deploy Streamlit Dashboard
+    name: Deploy Next.js Dashboard
     runs-on: ubuntu-latest
     needs: deploy-public-api
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -273,20 +286,18 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      # Frontend container — no GCP credentials needed at runtime, it only
-      # makes outbound HTTPS calls to the public crypto-api. Hence no
-      # service account flag (uses the default compute SA, which is fine
-      # because the container does not access any GCP resources).
       - name: Resolve crypto-api URL
         id: api
         run: |
           api_url=$(gcloud run services describe crypto-api --region us-central1 --format='value(status.url)')
           echo "url=$api_url" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy crypto-dashboard to Cloud Run
+      # Public-facing dashboard. Runs as sa-dashboard-next, which is the
+      # ONLY identity allowed to invoke crypto-api.
+      - name: Deploy crypto-dashboard (Next.js) to Cloud Run
         run: |
           gcloud run deploy crypto-dashboard \
-            --source ./dashboard-streamlit \
+            --source ./dashboard-next \
             --region us-central1 \
             --platform managed \
             --allow-unauthenticated \
@@ -296,6 +307,7 @@ jobs:
             --cpu 1 \
             --port 8080 \
             --timeout 60s \
+            --service-account sa-dashboard-next@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --build-service-account projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/sa-function-build@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
-            --set-env-vars "^|^API_BASE_URL=${{ steps.api.outputs.url }}|CACHE_TTL_SECONDS=10" \
+            --set-env-vars "^|^API_BASE_URL=${{ steps.api.outputs.url }}|NODE_ENV=production" \
             --quiet
