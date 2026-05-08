@@ -1,6 +1,6 @@
 # Security Policy
 
-This document records the threat model, security controls, and reporting process for the analytics-engine project. The project is a portfolio demo with intentionally public surface area — every control below exists because of, not despite, that fact.
+This document records the threat model, security controls, and reporting process for the analytics-engine project. The project is a portfolio demo with one intentionally public surface: the Next.js dashboard. The FastAPI backend is private and can only be invoked by the dashboard service account.
 
 ---
 
@@ -11,7 +11,7 @@ Three realistic adversaries were considered while designing this:
 | Adversary | What they want | What they can do | Mitigations in this project |
 |---|---|---|---|
 | **GitHub-scanning bot** | A leaked service-account JSON key to spin up crypto-mining or LLM-call workloads on the project's bill | Continuously scan public GitHub for credential strings | **No JSON keys exist for this project.** All CI uses Workload Identity Federation. `*.json` credential files are gitignored. Verified: `git grep` for any credential pattern returns 0 hits across all branches and history. |
-| **Public-API abuser** | Run thousands of expensive BigQuery scans on the project's bill via the unauthenticated API | Hammer `https://crypto-api-*.run.app/*` from a botnet | Three layers: `--max-instances 5` caps compute, `MAX_BYTES_BILLED=104857600` caps each query at 100 MB scan, `ALLOWED_SYMBOLS` rejects unknown inputs at the API edge with HTTP 404 before any BQ call. Worst case under abuse: ~EUR 10/day. |
+| **Dashboard/API abuser** | Run thousands of expensive BigQuery scans on the project's bill through public dashboard routes | Hammer `https://crypto-dashboard-*.run.app/api/*` from a botnet | Cloud Run IAM keeps `crypto-api` private, dashboard rate limits requests, `--max-instances 5` caps compute, `MAX_BYTES_BILLED=104857600` caps each query at 100 MB, and `ALLOWED_SYMBOLS` rejects unknown symbols before any BQ call. |
 | **Compromised dev laptop** | Use stale local credentials to push malicious infra changes | Steal Application Default Credentials, push to a feature branch | All production changes require a PR and a manual "production" environment approval in GitHub Environments before Apply runs. A pushed branch alone cannot change cloud resources. |
 
 Out of scope: **state-level adversaries**, **insider threats from owners** (you), **supply-chain attacks on Python/Terraform providers** (mitigated only by pinned versions, not this doc).
@@ -36,7 +36,8 @@ Every workload has a dedicated service account scoped to the minimum it needs:
 | Synthetic processor (Cloud Function) | `sa-transaction-processor` | `bigquery.dataEditor` + `jobUser`, `secretmanager.secretAccessor`, `run.invoker`, `pubsub.subscriber` |
 | Coinbase producer (Cloud Run) | `sa-coinbase-producer` | `pubsub.publisher` **only on the `crypto-trades` topic** (not project-wide) |
 | Crypto processor (Cloud Function) | `sa-transaction-processor` (shared) | as above |
-| Public crypto API (Cloud Run) | `sa-public-api` | `bigquery.dataViewer` **only on `transactions_ds`** + `bigquery.jobUser` (project-wide, required to run any query) |
+| Private crypto API (Cloud Run) | `sa-public-api` | `bigquery.dataViewer` **only on `transactions_ds`** + `bigquery.jobUser` (project-wide, required to run any query) |
+| Public Next.js dashboard (Cloud Run) | `sa-dashboard-next` | `run.invoker` on `crypto-api` only |
 | BQML training (scheduled query) | `sa-bqml-trainer` | `bigquery.dataEditor` + `jobUser` |
 | Cloud Build (deploys) | `sa-function-build` | `cloudbuild.builds.builder`, `storage.objectViewer`, `artifactregistry.writer`, `logging.logWriter`, `run.developer` |
 | GitHub Actions CI | `sa-github-cicd` | `roles/editor` + `projectIamAdmin` + `bigquery.admin` + `iam.serviceAccountAdmin` + `securityReviewer` + `secretmanager.secretAccessor` |
@@ -50,9 +51,9 @@ The CI SA is intentionally broad — it has to manage all of the above. It is im
 - **`*.tfvars`, `*-credentials.json`, `application_default_credentials.json` are in `.gitignore`.**
 - Verified by automated scan: `git grep -E 'sk-ant-|AIza[0-9A-Za-z_-]{35}|"private_key":|-----BEGIN.*PRIVATE KEY'` returns 0 hits across all branches and the full git history.
 
-### Input validation on the public API
+### Input validation on the private API and dashboard proxy
 
-The public REST API (`api-public/main.py`) validates every input boundary:
+The private REST API (`api-public/main.py`) validates every input boundary. The public Next.js dashboard validates proxy-route inputs before calling it:
 
 - **Path parameters** (`{symbol}`): rejected against an explicit allow-list (`ALLOWED_SYMBOLS`) at the function entry. Unknown values return 404 *before* any BigQuery call is built. This kills SQL-injection-style attempts at the cheapest possible point.
 - **Query parameters**: typed via FastAPI's `Annotated[int, Query(ge=1, le=1440)]` style. Out-of-range or non-numeric values return HTTP 422 before reaching handler code.
@@ -66,7 +67,8 @@ The public REST API (`api-public/main.py`) validates every input boundary:
 | `coinbase-producer` (Cloud Run) | `--no-allow-unauthenticated` | Egress-only worker; nothing should call its `/health` from outside the project |
 | `process-crypto-trade` (Cloud Function) | invoked only via Eventarc (Pub/Sub trigger) | Pub/Sub-triggered, no public HTTP |
 | `process-transaction` (Cloud Function) | invoked only via Eventarc | Same |
-| `crypto-api` (Cloud Run) | `--allow-unauthenticated` | Intentional — portfolio demo. Cost-protected (see threat model) |
+| `crypto-api` (Cloud Run) | `--no-allow-unauthenticated` | Private read API; only `sa-dashboard-next` has `run.invoker` |
+| `crypto-dashboard` (Cloud Run) | `--allow-unauthenticated` | Public portfolio dashboard; proxies read-only API routes server-side |
 
 ### CI/CD safeguards
 
@@ -121,10 +123,9 @@ Please do not file a public issue or pull request for security findings until th
 
 Documented for honesty:
 
-1. **Public API is unauthenticated.** Mitigated by the cost-protection layers above. If this becomes a real product, switch to `--no-allow-unauthenticated` and fronted by API Gateway with API keys.
+1. **Public dashboard routes can still trigger backend reads.** Mitigated by dashboard rate limiting, private service-to-service auth, Cloud Run max-instances, FastAPI input validation, and BigQuery scan caps.
 2. **`sa-github-cicd` has `roles/editor` + `bigquery.admin` + several IAM roles.** Justified because Terraform Apply needs to manage almost every resource type. Scoped to GitHub Actions only via WIF, only invokable on the protected `main` branch.
-3. **No CSP / security headers on the public API.** It only serves JSON, no HTML, no cookies. Adding HSTS, CSP, etc. would be theatre at this layer (Cloud Run already terminates TLS with managed certs).
-4. **No SBOM generation.** Pinned versions in `requirements.txt` and `terraform.lock.hcl` give reproducibility; full SBOM tooling (e.g. `syft`, GitHub dependency-graph) is a follow-up.
+3. **No SBOM generation.** Pinned versions in `requirements.txt` and `terraform.lock.hcl` give reproducibility; full SBOM tooling (e.g. `syft`, GitHub dependency-graph) is a follow-up.
 
 ---
 

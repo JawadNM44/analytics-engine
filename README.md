@@ -10,7 +10,8 @@ Two production data pipelines on Google Cloud, fully Terraformed: a synthetic-tr
 
 | | |
 |---|---|
-| **Live API** | https://crypto-api-jiuqt3hfoq-uc.a.run.app · auto-docs at [`/docs`](https://crypto-api-jiuqt3hfoq-uc.a.run.app/docs) |
+| **Live dashboard** | https://crypto-dashboard-jiuqt3hfoq-uc.a.run.app |
+| **Backend API** | Private Cloud Run service; invoked only by the dashboard service account |
 | **End-to-end latency** | < 2 seconds (exchange → queryable BigQuery row) |
 | **Sustained throughput** | ~5 trades/sec across 3 symbols (BTC, ETH, SOL) |
 | **Trades processed (single 24h window)** | 508,615 trades · ~$432.9M USD volume · 0 errors |
@@ -102,12 +103,12 @@ LIMIT 50;
 
 Ten more sample queries (forecasts, whale trades, OHLCV candles, model coefficients) live in [`analytics/bqml_queries.sql`](analytics/bqml_queries.sql).
 
-Or call the API:
+Or call the dashboard proxy API:
 
 ```bash
-curl https://crypto-api-jiuqt3hfoq-uc.a.run.app/anomalies/recent?limit=10
-curl https://crypto-api-jiuqt3hfoq-uc.a.run.app/price/BTC-USD
-curl https://crypto-api-jiuqt3hfoq-uc.a.run.app/stats
+curl 'https://crypto-dashboard-jiuqt3hfoq-uc.a.run.app/api/anomalies?limit=10'
+curl https://crypto-dashboard-jiuqt3hfoq-uc.a.run.app/api/price/BTC-USD
+curl https://crypto-dashboard-jiuqt3hfoq-uc.a.run.app/api/stats
 ```
 
 ---
@@ -150,7 +151,7 @@ Cost trade-offs in [`docs/COSTS.md`](docs/COSTS.md); incident postmortems in [`C
 │   ├── iam.tf            # Per-workload SAs, WIF for GitHub, IAM propagation gate
 │   ├── monitoring.tf     # Dashboard + alert policies
 │   └── outputs.tf
-├── tests/                # 37 unit tests across producer, both processors, public API
+├── tests/                # 37 unit tests across producer, both processors, read API
 ├── docs/
 │   ├── COSTS.md          # Cost engineering writeup
 │   └── DASHBOARD_SETUP.md  # Looker Studio click-stream guide (Streamlit alternative)
@@ -338,8 +339,11 @@ The Cloud Run worker is the dominant cost because a WebSocket consumer cannot sc
 - [`SECURITY.md`](SECURITY.md) — threat model (3 adversaries), per-workload service-account scopes, verified absences.
 - [`CHANGELOG.md`](CHANGELOG.md) — chronological project history, including all six incident fixes.
 - [`producer-coinbase/README.md`](producer-coinbase/README.md) — WebSocket producer details and local dev.
-- [`api-public/README.md`](api-public/README.md) — public REST API endpoints, configuration, cost protection.
-- [`dashboard-streamlit/README.md`](dashboard-streamlit/README.md) — Streamlit dashboard local-dev and deploy notes.
+- [`api-public/README.md`](api-public/README.md) — private FastAPI endpoints, configuration, cost protection.
+- [`dashboard-next/README.md`](dashboard-next/README.md) — public dashboard, private backend proxying, local-dev and deploy notes.
+- [`docs/VERIFIED_MARKET_INTELLIGENCE_ROADMAP.md`](docs/VERIFIED_MARKET_INTELLIGENCE_ROADMAP.md) — next-stage roadmap, feature sizes, safety gates.
+- [`docs/VERIFIED_INTELLIGENCE.md`](docs/VERIFIED_INTELLIGENCE.md) — agentic claim/evidence/verdict design.
+- [`docs/PHASE_1_EVIDENCE_MODEL.md`](docs/PHASE_1_EVIDENCE_MODEL.md) — implementation plan for agent insight storage and dashboard reads.
 - [`analytics/bqml_queries.sql`](analytics/bqml_queries.sql) — ten runnable example queries for every view and ML function.
 
 ---

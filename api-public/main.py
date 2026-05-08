@@ -1,20 +1,20 @@
 """
-Public read-only REST API over the live crypto-trades data in BigQuery.
+Private read-only REST API over the live crypto-trades data in BigQuery.
 
 Design notes
 ────────────
-- This service is *intentionally* public (`--allow-unauthenticated`).
-  Every safeguard against abuse lives in two places:
-    1. Cloud Run scaling limits (`--max-instances` set at deploy time).
-    2. BigQuery `maximum_bytes_billed` per query (hard cap, set per request).
-  Together they bound the absolute worst-case cost to ~EUR 10/day even
-  under sustained abuse.
+- This service is intentionally private (`--no-allow-unauthenticated`).
+  The public Next.js dashboard invokes it server-side with a Google ID token.
+  Defense still lives in layers:
+    1. Cloud Run IAM (only `sa-dashboard-next` can invoke it).
+    2. Cloud Run scaling limits (`--max-instances` set at deploy time).
+    3. BigQuery `maximum_bytes_billed` per query (hard cap, set per request).
 
 - The service holds no state and runs scale-to-zero. Cold starts are fast
   enough (~600ms) for portfolio demo use.
 
 - Every endpoint uses BigQuery's automatic 24h query result cache, so
-  repeated identical requests cost EUR 0 after the first one. Browser/CDN
+  repeated identical requests cost EUR 0 after the first one. Dashboard/CDN
   caching is hinted via `Cache-Control: max-age=10`.
 
 - The BQ client is created once at import time and reused across requests.
@@ -70,8 +70,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS open for portfolio demo + the future Looker dashboard.
-# Read-only API, so the typical CORS attack surface is not relevant here.
+# CORS remains permissive for local development and older deployments, but
+# production network access is controlled by Cloud Run IAM.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
