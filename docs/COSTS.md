@@ -112,15 +112,19 @@ Console: https://console.cloud.google.com/billing/015258-60EBE2-637561/budgets
 
 ---
 
-## Cost protection on the public API
+## Cost protection on dashboard-backed API reads
 
-Three independent layers prevent the public `/anomalies/recent` URL from becoming an attack vector:
+The FastAPI backend is private, but public dashboard routes can still trigger
+read queries. Five independent layers keep that from becoming an attack vector:
 
-1. **`--max-instances 5`** caps concurrent compute. A traffic spike serves slowly, not expensively.
-2. **`MAX_BYTES_BILLED=104857600`** (100 MB) on every BigQuery query. A single rogue query costs at most ~EUR 0.001.
-3. **`ALLOWED_SYMBOLS` allow-list**. Unknown symbols are rejected at the API edge with HTTP 404 *before* any BQ call is made.
+1. **Cloud Run IAM** keeps `crypto-api` private; only the dashboard service account can invoke it.
+2. **Dashboard route rate limiting** rejects abusive clients before the backend call.
+3. **`--max-instances 5`** caps concurrent compute. A traffic spike serves slowly, not expensively.
+4. **`MAX_BYTES_BILLED=104857600`** (100 MB) on every BigQuery query. A single rogue query costs at most ~EUR 0.001.
+5. **`ALLOWED_SYMBOLS` allow-list**. Unknown symbols are rejected at the API edge with HTTP 404 *before* any BQ call is made.
 
-Worst-case under sustained abuse: ~EUR 10/day. Without these, a bot scanning the URL could rack up real charges.
+Without these controls, a bot scanning dashboard API routes could rack up real
+charges. With them, the worst case is bounded and visible in billing alerts.
 
 ---
 
