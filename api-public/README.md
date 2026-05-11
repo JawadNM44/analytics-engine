@@ -41,7 +41,7 @@ uvicorn main:app --reload --port 8080
 | `GCP_PROJECT_ID` | required | BQ project to query |
 | `BQ_DATASET` | `transactions_ds` | Dataset name |
 | `ALLOWED_SYMBOLS` | `BTC-USD,ETH-USD,SOL-USD` | Comma-separated allow-list, blocks unknown symbols at the API edge |
-| `MAX_BYTES_BILLED` | `104857600` (100 MB) | Hard per-query scan cap — stops a runaway query from costing real money |
+| `MAX_BYTES_BILLED` | `209715200` (200 MB) | Hard per-query scan cap — stops a runaway query from costing real money |
 | `PORT` | `8080` | Cloud Run sets this |
 
 ## Cost protection — layered controls
@@ -49,7 +49,7 @@ uvicorn main:app --reload --port 8080
 1. **Cloud Run IAM** — `crypto-api` is deployed with `--no-allow-unauthenticated`; only `sa-dashboard-next` can invoke it.
 2. **Dashboard rate limiting** — public `/api/*` routes reject abusive traffic before reaching FastAPI.
 3. **Cloud Run scaling cap** — `--max-instances 5` at deploy time bounds concurrent compute.
-4. **BigQuery `maximum_bytes_billed`** — every query is rejected if it would scan > 100 MB. Worst-case query cost: < EUR 0.001.
+4. **BigQuery `maximum_bytes_billed`** — every query is rejected if it would scan > 200 MB. Worst-case query cost: < EUR 0.002.
 5. **Symbol allow-list** — `_validate_symbol()` rejects anything outside the configured set with a 404, before a query is even built.
 
 Together: even if the public dashboard routes are hammered, traffic is bounded

@@ -234,7 +234,9 @@ jobs:
       # Only sa-dashboard-next can invoke this service. Defense layers:
       #   - Cloud Run IAM (no public access)
       #   - --max-instances 5 caps concurrent compute
-      #   - MAX_BYTES_BILLED env caps each BQ scan to 100 MB
+      #   - MAX_BYTES_BILLED env caps each BQ scan to 200 MB (raised from
+      #     100 MB on 2026-05-11 — see docs/COSTS.md "partition pruning"
+      #     lessons. Worst-case query cost stays < EUR 0.002.)
       #   - sa-public-api has only dataViewer on transactions_ds + jobUser
       - name: Deploy crypto-api to Cloud Run (private)
         run: |
@@ -251,7 +253,7 @@ jobs:
             --timeout 30s \
             --service-account sa-public-api@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --build-service-account projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/sa-function-build@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
-            --set-env-vars "^|^GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|BQ_DATASET=transactions_ds|ALLOWED_SYMBOLS=BTC-USD,ETH-USD,SOL-USD|MAX_BYTES_BILLED=104857600" \
+            --set-env-vars "^|^GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|BQ_DATASET=transactions_ds|ALLOWED_SYMBOLS=BTC-USD,ETH-USD,SOL-USD|MAX_BYTES_BILLED=209715200" \
             --quiet
 
       # Strip any allUsers binding that may still be on the service from

@@ -58,8 +58,22 @@ resource "google_bigquery_table" "view_crypto_anomalies_zscore" {
   description = "Per-minute volume anomalies via 60-min rolling z-score"
 
   view {
+    # Inlined 1-min aggregation (not via view_crypto_volume_1m) so we can
+    # apply a tight `processed_at` partition filter — BigQuery prunes the
+    # underlying crypto_trades partitions instead of scanning 30 days of
+    # data on every dashboard call. view_crypto_volume_1m keeps its 30-day
+    # window for the nightly ARIMA training.
     query          = <<-SQL
-      WITH stats AS (
+      WITH per_minute AS (
+        SELECT
+          TIMESTAMP_TRUNC(trade_time, MINUTE) AS minute,
+          product_id,
+          SUM(volume_usd) AS volume_usd
+        FROM `${var.project_id}.${var.bq_dataset}.${var.crypto_bq_table}`
+        WHERE processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 DAY)
+        GROUP BY minute, product_id
+      ),
+      stats AS (
         SELECT
           minute,
           product_id,
@@ -67,7 +81,7 @@ resource "google_bigquery_table" "view_crypto_anomalies_zscore" {
           AVG(volume_usd)  OVER w AS mean_60m,
           STDDEV(volume_usd) OVER w AS stddev_60m,
           COUNT(*)         OVER w AS samples_60m
-        FROM `${var.project_id}.${var.bq_dataset}.view_crypto_volume_1m`
+        FROM per_minute
         WINDOW w AS (
           PARTITION BY product_id
           ORDER BY UNIX_SECONDS(minute)
@@ -90,7 +104,7 @@ resource "google_bigquery_table" "view_crypto_anomalies_zscore" {
     use_legacy_sql = false
   }
 
-  depends_on = [google_bigquery_table.view_crypto_volume_1m]
+  depends_on = [google_bigquery_table.crypto_trades]
 }
 
 # ── Layer 1b: whale trades (top 1% by USD volume per product per day) ───────
@@ -111,7 +125,10 @@ resource "google_bigquery_table" "view_crypto_whale_trades" {
           DATE(trade_time) AS trade_date,
           APPROX_QUANTILES(volume_usd, 100)[OFFSET(99)] AS p99_volume_usd
         FROM `${var.project_id}.${var.bq_dataset}.${var.crypto_bq_table}`
-        WHERE processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+        -- 2-day window: tight enough to stay within MAX_BYTES_BILLED as
+        -- crypto_trades grows (~600k rows/day), wide enough that "recent
+        -- whales" still includes yesterday.
+        WHERE processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 DAY)
         GROUP BY product_id, trade_date
       )
       SELECT
@@ -127,7 +144,10 @@ resource "google_bigquery_table" "view_crypto_whale_trades" {
       JOIN thresholds th
         ON t.product_id = th.product_id
        AND DATE(t.trade_time) = th.trade_date
-      WHERE t.volume_usd >= th.p99_volume_usd
+      -- Same 2-day partition prune as the thresholds CTE — without this BQ
+      -- scans the entire table for the JOIN side, even though the CTE is small.
+      WHERE t.processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 DAY)
+        AND t.volume_usd  >= th.p99_volume_usd
       ORDER BY t.trade_time DESC
     SQL
     use_legacy_sql = false

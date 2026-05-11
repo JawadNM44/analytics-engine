@@ -17,7 +17,7 @@ Measured against a freshly-deployed copy of this project on 2026-04-26, in EUR (
 | Cloud Run `crypto-api` | scale-to-zero, max 5 instances | ~0.00 | 0% | Cold-start on demand; well within free tier |
 | Cloud Function `process-crypto-trade` | scale-to-zero, ~5 invocations/s when producer runs | ~0.20 | < 1% | First 2M invocations/month free |
 | Cloud Function `process-transaction` | scale-to-zero, idle | 0.00 | 0% | Only runs during synthetic loads |
-| BigQuery storage | ~80 MB | 0.00 | 0% | First 10 GB/month free |
+| BigQuery storage | ~270 MB (grows ~50 MB/day at 3 symbols) | 0.00 | 0% | First 10 GB/month free; partition expiration set to 365 days |
 | BigQuery queries | views + nightly BQML training, ~100 MB scan/day | < 0.50 | < 1% | First 1 TB/month free |
 | BQML training | 1 nightly `CREATE OR REPLACE MODEL`, ~10 MB scan | ~0.005 | ~0% | Negligible |
 | Pub/Sub | < 1 GB/month | 0.00 | 0% | First 10 GB/month free |
@@ -73,7 +73,19 @@ gcloud run services update coinbase-producer --region us-central1 --min-instance
 
 ### 4. Reduce BigQuery scan with partition + cluster discipline
 
-Already applied in this project — `crypto_trades` is partitioned by `processed_at` and clustered on `(product_id, side)`. A query like `WHERE product_id = 'BTC-USD' AND processed_at = CURRENT_DATE()` scans MBs, not GBs. Without these, full-table scans would land us in BQ pay-per-TB territory.
+`crypto_trades` is partitioned by `processed_at` and clustered on `(product_id, side)`. A query like `WHERE product_id = 'BTC-USD' AND processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)` scans MBs, not GBs. Without partition pruning, full-table scans would land us in BQ pay-per-TB territory.
+
+**Two rules learned the hard way (post-incident, 2026-05-11):**
+
+1. **Always filter on the partition column (`processed_at`), not just on a logically equivalent column like `trade_time` or `minute`.** BigQuery only prunes partitions if the WHERE clause names the partition column. A `WHERE trade_time >= ...` predicate scans every partition even when the dates line up. Add `processed_at` alongside, with a small safety margin (e.g. `processed_at >= 25h ago AND trade_time >= 24h ago`).
+
+2. **Predicates do not always push through views.** A view that internally scans `WHERE processed_at >= 30 DAY` will scan 30 days **regardless** of what the outer query filters on. If a view feeds both a heavy consumer (e.g. ARIMA training, 30 days) and a light consumer (e.g. dashboard, 24h), either:
+   - Give each consumer its own view with the right window, or
+   - Have the light consumer aggregate inline from `crypto_trades` with a `processed_at` predicate that *does* prune.
+
+   In this project `view_crypto_volume_1m` keeps a 30-day window for ARIMA, while `/anomalies/ml` and `/forecast` aggregate inline. The `view_crypto_whale_trades` and `view_crypto_anomalies_zscore` views were tightened from 30-day to 1-2 day windows because their only consumer is the dashboard.
+
+**Why this matters in practice:** as `crypto_trades` grows (~600k trades/day, ~50 MB/day), an unpruned scan crosses the 100 MB `MAX_BYTES_BILLED` cap and starts returning 502s to the dashboard. The cap protects the wallet but does so by breaking the UI — so partition-pruning discipline is what keeps the dashboard alive long-term, not the cap itself.
 
 ### 5. Drop the synthetic pipeline if you only care about crypto
 
@@ -120,7 +132,7 @@ read queries. Five independent layers keep that from becoming an attack vector:
 1. **Cloud Run IAM** keeps `crypto-api` private; only the dashboard service account can invoke it.
 2. **Dashboard route rate limiting** rejects abusive clients before the backend call.
 3. **`--max-instances 5`** caps concurrent compute. A traffic spike serves slowly, not expensively.
-4. **`MAX_BYTES_BILLED=104857600`** (100 MB) on every BigQuery query. A single rogue query costs at most ~EUR 0.001.
+4. **`MAX_BYTES_BILLED=209715200`** (200 MB) on every BigQuery query. A single rogue query costs at most ~EUR 0.002. (Raised from 100 MB on 2026-05-11 after partition-pruning fixes; see section "Two rules learned the hard way" below.)
 5. **`ALLOWED_SYMBOLS` allow-list**. Unknown symbols are rejected at the API edge with HTTP 404 *before* any BQ call is made.
 
 Without these controls, a bot scanning dashboard API routes could rack up real

@@ -157,7 +157,8 @@ def stats(response: Response) -> dict:
           MAX(price)                AS high,
           MAX(trade_time)           AS latest_trade
         FROM `{project}.{dataset}.crypto_trades`
-        WHERE trade_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+        WHERE processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 25 HOUR)
+          AND trade_time     >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
         GROUP BY product_id
         ORDER BY volume_usd DESC
         """
@@ -179,6 +180,7 @@ def price(
           SELECT price, trade_time
           FROM `{project}.{dataset}.crypto_trades`
           WHERE product_id = @symbol
+            AND processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 HOUR)
           ORDER BY trade_time DESC
           LIMIT 1
         ),
@@ -186,7 +188,8 @@ def price(
           SELECT price
           FROM `{project}.{dataset}.crypto_trades`
           WHERE product_id = @symbol
-            AND trade_time <= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
+            AND processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 HOUR)
+            AND trade_time   <= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
           ORDER BY trade_time DESC
           LIMIT 1
         )
@@ -283,9 +286,18 @@ def anomalies_ml(
           MODEL `{project}.{dataset}.model_crypto_volume_forecast`,
           STRUCT(0.95 AS anomaly_prob_threshold),
           (
-            SELECT minute, product_id, volume_usd
-            FROM `{project}.{dataset}.view_crypto_volume_1m`
-            WHERE minute >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @hrs HOUR)
+            -- Inline aggregation (not via view_crypto_volume_1m) so the
+            -- processed_at partition filter prunes scans. The view keeps
+            -- a 30-day window for ARIMA training; dashboard reads only need
+            -- the last few hours.
+            SELECT
+              TIMESTAMP_TRUNC(trade_time, MINUTE) AS minute,
+              product_id,
+              SUM(volume_usd) AS volume_usd
+            FROM `{project}.{dataset}.crypto_trades`
+            WHERE processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL (@hrs + 1) HOUR)
+              AND trade_time   >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @hrs HOUR)
+            GROUP BY minute, product_id
           )
         )
         WHERE is_anomaly
@@ -323,10 +335,16 @@ def forecast(
           MODEL `{project}.{dataset}.model_crypto_volume_forecast`,
           STRUCT(0.95 AS anomaly_prob_threshold),
           (
-            SELECT minute, product_id, volume_usd
-            FROM `{project}.{dataset}.view_crypto_volume_1m`
-            WHERE minute >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @hrs HOUR)
-              AND product_id = @symbol
+            -- See /anomalies/ml: inline aggregation for partition pruning.
+            SELECT
+              TIMESTAMP_TRUNC(trade_time, MINUTE) AS minute,
+              product_id,
+              SUM(volume_usd) AS volume_usd
+            FROM `{project}.{dataset}.crypto_trades`
+            WHERE processed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL (@hrs + 1) HOUR)
+              AND trade_time   >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @hrs HOUR)
+              AND product_id   = @symbol
+            GROUP BY minute, product_id
           )
         )
         ORDER BY minute ASC
